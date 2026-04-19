@@ -12,4 +12,5 @@ enum class ErrorType(
     DEFAULT_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.E500, "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", LogLevel.ERROR),
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, ErrorCode.E400, "요청이 올바르지 않습니다.", LogLevel.INFO),
     NOT_FOUND_DATA(HttpStatus.BAD_REQUEST, ErrorCode.E401, "해당 데이터를 찾을 수 없습니다.", LogLevel.ERROR),
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, ErrorCode.E403, "해당 작업을 수행할 권한이 없습니다.", LogLevel.INFO),
 }
