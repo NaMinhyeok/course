@@ -7,6 +7,8 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    testImplementation("com.ninja-squad:springmockk:4.0.2")
+    testImplementation("io.mockk:mockk:1.13.13")
 }
 
 tasks.named("bootJar") { enabled = true }
