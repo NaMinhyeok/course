@@ -141,6 +141,12 @@ class EnrollmentControllerTest(
             .andExpect(jsonPath("$.data[0].course.id").value(10))
             .andExpect(jsonPath("$.data[0].course.title").value("강의"))
             .andExpect(jsonPath("$.data[0].status").value("PENDING"))
+            .andExpect(jsonPath("$.data[0].appliedAt").exists())
+            .andExpect(jsonPath("$.data[0].course.price").value(10000))
+            .andExpect(jsonPath("$.data[0].course.capacity").value(10))
+            .andExpect(jsonPath("$.data[0].course.status").value("OPEN"))
+            .andExpect(jsonPath("$.data[0].course.startAt").exists())
+            .andExpect(jsonPath("$.data[0].course.endAt").exists())
     }
 
     @Test
