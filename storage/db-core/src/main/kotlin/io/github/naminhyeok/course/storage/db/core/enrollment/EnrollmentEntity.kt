@@ -23,4 +23,11 @@ class EnrollmentEntity(
     @Enumerated(EnumType.STRING)
     final var enrollmentStatus: EnrollmentStatus = enrollmentStatus
         private set
+
+    fun confirm() {
+        check(enrollmentStatus == EnrollmentStatus.PENDING) {
+            "PENDING 상태에서만 확정할 수 있습니다: $enrollmentStatus"
+        }
+        enrollmentStatus = EnrollmentStatus.CONFIRMED
+    }
 }

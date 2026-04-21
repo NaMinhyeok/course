@@ -98,4 +98,45 @@ class EnrollmentServiceTest(
             .extracting("errorType")
             .isEqualTo(ErrorType.NOT_FOUND_DATA)
     }
+
+    @Test
+    fun `confirm 은 PENDING Enrollment 를 CONFIRMED 로 전이한다`() {
+        val course = saveCourseWithSeats(status = CourseStatus.OPEN)
+        val enrollmentId = enrollmentService.enroll(user, course.id)
+
+        enrollmentService.confirm(user, enrollmentId)
+
+        val enrollment = enrollmentRepository.findById(enrollmentId).orElseThrow()
+        assertThat(enrollment.enrollmentStatus).isEqualTo(EnrollmentStatus.CONFIRMED)
+    }
+
+    @Test
+    fun `confirm 은 다른 사용자의 Enrollment 면 ACCESS_DENIED 예외를 던진다`() {
+        val course = saveCourseWithSeats(status = CourseStatus.OPEN)
+        val enrollmentId = enrollmentService.enroll(user, course.id)
+        val other = User(id = 999L)
+
+        assertThatThrownBy { enrollmentService.confirm(other, enrollmentId) }
+            .isInstanceOf(CoreException::class.java)
+            .extracting("errorType")
+            .isEqualTo(ErrorType.ACCESS_DENIED)
+    }
+
+    @Test
+    fun `confirm 은 존재하지 않는 Enrollment 면 NOT_FOUND_DATA 예외를 던진다`() {
+        assertThatThrownBy { enrollmentService.confirm(user, 99999L) }
+            .isInstanceOf(CoreException::class.java)
+            .extracting("errorType")
+            .isEqualTo(ErrorType.NOT_FOUND_DATA)
+    }
+
+    @Test
+    fun `confirm 은 이미 CONFIRMED 인 Enrollment 에 대해 IllegalStateException 을 던진다`() {
+        val course = saveCourseWithSeats(status = CourseStatus.OPEN)
+        val enrollmentId = enrollmentService.enroll(user, course.id)
+        enrollmentService.confirm(user, enrollmentId)
+
+        assertThatThrownBy { enrollmentService.confirm(user, enrollmentId) }
+            .isInstanceOf(IllegalStateException::class.java)
+    }
 }

@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.test.context.TestConstructor
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -48,6 +49,32 @@ class EnrollmentControllerTest(
                 post("/api/v1/enrollments")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"courseId": 10}"""),
+            ).andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `PATCH api v1 enrollments id status CONFIRMED 는 confirm 을 호출한다`() {
+        every { enrollmentService.confirm(any(), 7L) } returns Unit
+
+        mockMvc
+            .perform(
+                patch("/api/v1/enrollments/7/status")
+                    .header("X-User-Id", "200")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"status":"CONFIRMED"}"""),
+            ).andExpect(status().isOk)
+
+        verify { enrollmentService.confirm(any(), 7L) }
+    }
+
+    @Test
+    fun `PATCH api v1 enrollments id status PENDING 은 400 을 반환한다`() {
+        mockMvc
+            .perform(
+                patch("/api/v1/enrollments/7/status")
+                    .header("X-User-Id", "200")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"status":"PENDING"}"""),
             ).andExpect(status().isBadRequest)
     }
 }

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service
 class EnrollmentService(
     private val courseRepository: CourseRepository,
     private val enrollmentProcessor: EnrollmentProcessor,
+    private val enrollmentManager: EnrollmentManager,
 ) {
     fun enroll(
         user: User,
@@ -26,5 +27,12 @@ class EnrollmentService(
             "신청 가능한 강의 상태가 아닙니다: ${course.courseStatus}"
         }
         return enrollmentProcessor.enroll(user.id, courseId)
+    }
+
+    fun confirm(
+        user: User,
+        enrollmentId: Long,
+    ) {
+        enrollmentManager.confirm(user, enrollmentId)
     }
 }
