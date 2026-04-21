@@ -22,9 +22,9 @@ class EnrollmentReader(
     ): List<Enrollment> {
         val entities =
             if (status == null) {
-                enrollmentRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                enrollmentRepository.findByUserIdOrderByIdDesc(userId)
             } else {
-                enrollmentRepository.findByUserIdAndEnrollmentStatusOrderByCreatedAtDesc(userId, status)
+                enrollmentRepository.findByUserIdAndEnrollmentStatusOrderByIdDesc(userId, status)
             }
         if (entities.isEmpty()) return emptyList()
 

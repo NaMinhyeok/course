@@ -194,7 +194,6 @@ class EnrollmentServiceTest(
         val course1 = saveCourseWithSeats()
         val course2 = saveCourseWithSeats()
         val firstId = enrollmentService.enroll(user, course1.id)
-        Thread.sleep(10)
         val secondId = enrollmentService.enroll(user, course2.id)
 
         val result = enrollmentService.getEnrollments(user, null)
