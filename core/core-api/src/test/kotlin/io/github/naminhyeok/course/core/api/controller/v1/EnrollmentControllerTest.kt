@@ -77,4 +77,19 @@ class EnrollmentControllerTest(
                     .content("""{"status":"PENDING"}"""),
             ).andExpect(status().isBadRequest)
     }
+
+    @Test
+    fun `PATCH api v1 enrollments id status CANCELLED 는 cancel 을 호출한다`() {
+        every { enrollmentService.cancel(any(), 7L) } returns Unit
+
+        mockMvc
+            .perform(
+                patch("/api/v1/enrollments/7/status")
+                    .header("X-User-Id", "200")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"status":"CANCELLED"}"""),
+            ).andExpect(status().isOk)
+
+        verify { enrollmentService.cancel(any(), 7L) }
+    }
 }

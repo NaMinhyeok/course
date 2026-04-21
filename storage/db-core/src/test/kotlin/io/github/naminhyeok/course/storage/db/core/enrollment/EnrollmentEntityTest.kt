@@ -33,4 +33,30 @@ class EnrollmentEntityTest {
         assertThatThrownBy { enrollment.confirm() }
             .isInstanceOf(IllegalStateException::class.java)
     }
+
+    @Test
+    fun `PENDING 상태에서 cancel 을 호출하면 CANCELLED 로 전이된다`() {
+        val enrollment = enrollmentOf(EnrollmentStatus.PENDING)
+
+        enrollment.cancel()
+
+        assertThat(enrollment.enrollmentStatus).isEqualTo(EnrollmentStatus.CANCELLED)
+    }
+
+    @Test
+    fun `CONFIRMED 상태에서 cancel 을 호출하면 CANCELLED 로 전이된다`() {
+        val enrollment = enrollmentOf(EnrollmentStatus.CONFIRMED)
+
+        enrollment.cancel()
+
+        assertThat(enrollment.enrollmentStatus).isEqualTo(EnrollmentStatus.CANCELLED)
+    }
+
+    @Test
+    fun `CANCELLED 상태에서 cancel 을 재호출하면 IllegalStateException 이 발생한다`() {
+        val enrollment = enrollmentOf(EnrollmentStatus.CANCELLED)
+
+        assertThatThrownBy { enrollment.cancel() }
+            .isInstanceOf(IllegalStateException::class.java)
+    }
 }

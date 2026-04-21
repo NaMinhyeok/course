@@ -36,7 +36,8 @@ class EnrollmentController(
     ): ApiResponse<Any> {
         when (request.status) {
             EnrollmentStatus.CONFIRMED -> enrollmentService.confirm(user, enrollmentId)
-            else -> throw CoreException(ErrorType.INVALID_REQUEST)
+            EnrollmentStatus.CANCELLED -> enrollmentService.cancel(user, enrollmentId)
+            EnrollmentStatus.PENDING -> throw CoreException(ErrorType.INVALID_REQUEST)
         }
         return ApiResponse.success()
     }

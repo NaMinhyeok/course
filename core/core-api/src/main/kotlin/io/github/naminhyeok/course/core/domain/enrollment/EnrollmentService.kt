@@ -35,4 +35,11 @@ class EnrollmentService(
     ) {
         enrollmentManager.confirm(user, enrollmentId)
     }
+
+    fun cancel(
+        user: User,
+        enrollmentId: Long,
+    ) {
+        enrollmentProcessor.cancel(user, enrollmentId)
+    }
 }
