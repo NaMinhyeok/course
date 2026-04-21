@@ -4,6 +4,7 @@ import io.github.naminhyeok.course.core.domain.User
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
+import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
@@ -13,6 +14,7 @@ class EnrollmentService(
     private val courseRepository: CourseRepository,
     private val enrollmentProcessor: EnrollmentProcessor,
     private val enrollmentManager: EnrollmentManager,
+    private val enrollmentReader: EnrollmentReader,
 ) {
     fun enroll(
         user: User,
@@ -42,4 +44,9 @@ class EnrollmentService(
     ) {
         enrollmentProcessor.cancel(user, enrollmentId)
     }
+
+    fun getEnrollments(
+        user: User,
+        status: EnrollmentStatus?,
+    ): List<Enrollment> = enrollmentReader.getEnrollments(user.id, status)
 }

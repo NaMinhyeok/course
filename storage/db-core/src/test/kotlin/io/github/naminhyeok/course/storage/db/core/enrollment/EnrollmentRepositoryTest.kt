@@ -22,4 +22,32 @@ class EnrollmentRepositoryTest(
         assertThat(found.courseId).isEqualTo(1L)
         assertThat(found.userId).isEqualTo(100L)
     }
+
+    @Test
+    fun `findByUserIdOrderByIdDesc 는 주어진 userId 의 모든 신청을 최신순으로 반환한다`() {
+        val first = enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 100L))
+        val second = enrollmentRepository.save(EnrollmentEntity(courseId = 2L, userId = 100L))
+        enrollmentRepository.save(EnrollmentEntity(courseId = 3L, userId = 999L))
+
+        val result = enrollmentRepository.findByUserIdOrderByIdDesc(100L)
+
+        assertThat(result).extracting("id").containsExactly(second.id, first.id)
+    }
+
+    @Test
+    fun `findByUserIdAndEnrollmentStatusOrderByIdDesc 는 주어진 userId 와 status 의 신청만 최신순으로 반환한다`() {
+        val pending = enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 100L))
+        val confirmed = enrollmentRepository.save(EnrollmentEntity(courseId = 2L, userId = 100L)).also { it.confirm() }
+        enrollmentRepository.save(EnrollmentEntity(courseId = 3L, userId = 100L)).also { it.cancel() }
+        enrollmentRepository.save(EnrollmentEntity(courseId = 4L, userId = 999L)).also { it.confirm() }
+
+        val result =
+            enrollmentRepository.findByUserIdAndEnrollmentStatusOrderByIdDesc(
+                100L,
+                EnrollmentStatus.CONFIRMED,
+            )
+
+        assertThat(result).extracting("id").containsExactly(confirmed.id)
+        assertThat(pending.id).isNotEqualTo(confirmed.id)
+    }
 }

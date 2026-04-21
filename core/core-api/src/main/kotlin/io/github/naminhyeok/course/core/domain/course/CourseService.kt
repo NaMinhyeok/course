@@ -76,18 +76,7 @@ class CourseService(
                 .findByCourseIdIn(visibleCourses.map { it.id })
                 .associateBy { it.courseId }
         return visibleCourses.map { course ->
-            val seats = seatsByCourseId.getValue(course.id)
-            Course(
-                id = course.id,
-                creatorId = course.creatorId,
-                title = course.title,
-                description = course.description,
-                price = course.price,
-                startAt = course.startAt,
-                endAt = course.endAt,
-                status = course.courseStatus,
-                seats = CourseSeats(capacity = seats.capacity, reservedCount = seats.reservedCount),
-            )
+            Course.from(course, seatsByCourseId.getValue(course.id))
         }
     }
 
@@ -100,17 +89,7 @@ class CourseService(
         val seats =
             courseSeatsRepository.findByCourseId(course.id)
                 ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
-        return Course(
-            id = course.id,
-            creatorId = course.creatorId,
-            title = course.title,
-            description = course.description,
-            price = course.price,
-            startAt = course.startAt,
-            endAt = course.endAt,
-            status = course.courseStatus,
-            seats = CourseSeats(capacity = seats.capacity, reservedCount = seats.reservedCount),
-        )
+        return Course.from(course, seats)
     }
 
     private fun requireOwnedCourse(
