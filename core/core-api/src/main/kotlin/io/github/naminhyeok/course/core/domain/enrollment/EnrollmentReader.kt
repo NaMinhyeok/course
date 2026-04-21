@@ -1,7 +1,6 @@
 package io.github.naminhyeok.course.core.domain.enrollment
 
 import io.github.naminhyeok.course.core.domain.course.Course
-import io.github.naminhyeok.course.core.domain.course.CourseSeats
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
@@ -35,19 +34,7 @@ class EnrollmentReader(
             courses
                 .filter { seatsByCourseId.containsKey(it.id) }
                 .associate { course ->
-                    val seats = seatsByCourseId[course.id]!!
-                    course.id to
-                        Course(
-                            id = course.id,
-                            creatorId = course.creatorId,
-                            title = course.title,
-                            description = course.description,
-                            price = course.price,
-                            startAt = course.startAt,
-                            endAt = course.endAt,
-                            status = course.courseStatus,
-                            seats = CourseSeats(capacity = seats.capacity, reservedCount = seats.reservedCount),
-                        )
+                    course.id to Course.from(course, seatsByCourseId[course.id]!!)
                 }
 
         return entities
