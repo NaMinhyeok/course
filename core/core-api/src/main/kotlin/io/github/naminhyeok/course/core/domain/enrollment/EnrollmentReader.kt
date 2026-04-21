@@ -32,30 +32,34 @@ class EnrollmentReader(
         val courses = courseRepository.findAllById(courseIds)
         val seatsByCourseId = courseSeatsRepository.findByCourseIdIn(courseIds).associateBy { it.courseId }
         val courseMap =
-            courses.associate { course ->
-                val seats = seatsByCourseId.getValue(course.id)
-                course.id to
-                    Course(
-                        id = course.id,
-                        creatorId = course.creatorId,
-                        title = course.title,
-                        description = course.description,
-                        price = course.price,
-                        startAt = course.startAt,
-                        endAt = course.endAt,
-                        status = course.courseStatus,
-                        seats = CourseSeats(capacity = seats.capacity, reservedCount = seats.reservedCount),
-                    )
-            }
+            courses
+                .filter { seatsByCourseId.containsKey(it.id) }
+                .associate { course ->
+                    val seats = seatsByCourseId[course.id]!!
+                    course.id to
+                        Course(
+                            id = course.id,
+                            creatorId = course.creatorId,
+                            title = course.title,
+                            description = course.description,
+                            price = course.price,
+                            startAt = course.startAt,
+                            endAt = course.endAt,
+                            status = course.courseStatus,
+                            seats = CourseSeats(capacity = seats.capacity, reservedCount = seats.reservedCount),
+                        )
+                }
 
-        return entities.map { entity ->
-            Enrollment(
-                id = entity.id,
-                userId = entity.userId,
-                course = courseMap.getValue(entity.courseId),
-                status = entity.enrollmentStatus,
-                appliedAt = entity.createdAt,
-            )
-        }
+        return entities
+            .filter { courseMap.containsKey(it.courseId) }
+            .map { entity ->
+                Enrollment(
+                    id = entity.id,
+                    userId = entity.userId,
+                    course = courseMap[entity.courseId]!!,
+                    status = entity.enrollmentStatus,
+                    appliedAt = entity.createdAt,
+                )
+            }
     }
 }
