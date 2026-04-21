@@ -7,6 +7,8 @@ import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseEntity
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
+import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsEntity
+import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -18,6 +20,7 @@ import java.time.LocalDateTime
 class CourseServiceTest(
     private val courseService: CourseService,
     private val courseRepository: CourseRepository,
+    private val courseSeatsRepository: CourseSeatsRepository,
 ) : ContextTest() {
     private val creator = User(id = 100L)
     private val baseStart = LocalDateTime.of(2026, 5, 1, 0, 0)
@@ -46,6 +49,19 @@ class CourseServiceTest(
         courseStatus = status,
     )
 
+    private fun saveCourseWithSeats(
+        creatorId: Long = creator.id,
+        status: CourseStatus = CourseStatus.DRAFT,
+        capacity: Int = 10,
+        reservedCount: Int = 0,
+    ): CourseEntity {
+        val entity = courseRepository.save(courseEntityOf(creatorId = creatorId, status = status))
+        courseSeatsRepository.save(
+            CourseSeatsEntity(courseId = entity.id, capacity = capacity, reservedCount = reservedCount),
+        )
+        return entity
+    }
+
     @Test
     fun `createCourse 는 DRAFT 상태로 저장하고 id 를 반환한다`() {
         val courseId = courseService.createCourse(creator, content())
@@ -54,6 +70,16 @@ class CourseServiceTest(
         assertThat(saved.creatorId).isEqualTo(creator.id)
         assertThat(saved.courseStatus).isEqualTo(CourseStatus.DRAFT)
         assertThat(saved.title).isEqualTo("강의")
+    }
+
+    @Test
+    fun `createCourse 는 CourseSeats 를 capacity 와 함께 생성하고 reservedCount 는 0 이다`() {
+        val courseId = courseService.createCourse(creator, content(capacity = 30))
+
+        val seats = courseSeatsRepository.findByCourseId(courseId)
+        assertThat(seats).isNotNull
+        assertThat(seats?.capacity).isEqualTo(30)
+        assertThat(seats?.reservedCount).isEqualTo(0)
     }
 
     @Test
@@ -113,9 +139,9 @@ class CourseServiceTest(
 
     @Test
     fun `findCourses 는 status 필터 없이 호출하면 DRAFT 를 제외한다`() {
-        val draft = courseRepository.save(courseEntityOf(status = CourseStatus.DRAFT))
-        val open = courseRepository.save(courseEntityOf(status = CourseStatus.OPEN))
-        val closed = courseRepository.save(courseEntityOf(status = CourseStatus.CLOSED))
+        val draft = saveCourseWithSeats(status = CourseStatus.DRAFT)
+        val open = saveCourseWithSeats(status = CourseStatus.OPEN)
+        val closed = saveCourseWithSeats(status = CourseStatus.CLOSED)
 
         val courses = courseService.findCourses(status = null)
 
@@ -125,9 +151,9 @@ class CourseServiceTest(
 
     @Test
     fun `findCourses 에 OPEN 을 지정하면 OPEN 만 반환한다`() {
-        val open = courseRepository.save(courseEntityOf(status = CourseStatus.OPEN))
-        courseRepository.save(courseEntityOf(status = CourseStatus.CLOSED))
-        courseRepository.save(courseEntityOf(status = CourseStatus.DRAFT))
+        val open = saveCourseWithSeats(status = CourseStatus.OPEN)
+        saveCourseWithSeats(status = CourseStatus.CLOSED)
+        saveCourseWithSeats(status = CourseStatus.DRAFT)
 
         val courses = courseService.findCourses(status = CourseStatus.OPEN)
 
@@ -136,13 +162,15 @@ class CourseServiceTest(
     }
 
     @Test
-    fun `findCourse 는 공개된 강의를 반환한다`() {
-        val entity = courseRepository.save(courseEntityOf(status = CourseStatus.OPEN))
+    fun `findCourse 는 공개된 강의를 seats 정보와 함께 반환한다`() {
+        val entity = saveCourseWithSeats(status = CourseStatus.OPEN, capacity = 30, reservedCount = 5)
 
         val course = courseService.findCourse(entity.id)
 
         assertThat(course.id).isEqualTo(entity.id)
         assertThat(course.status).isEqualTo(CourseStatus.OPEN)
+        assertThat(course.seats.capacity).isEqualTo(30)
+        assertThat(course.seats.reservedCount).isEqualTo(5)
     }
 
     @Test

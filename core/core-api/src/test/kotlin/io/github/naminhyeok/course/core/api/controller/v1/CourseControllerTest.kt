@@ -5,6 +5,7 @@ import io.github.naminhyeok.course.core.api.config.WebConfig
 import io.github.naminhyeok.course.core.api.controller.ApiControllerAdvice
 import io.github.naminhyeok.course.core.api.controller.v1.request.CreateCourseRequest
 import io.github.naminhyeok.course.core.domain.course.Course
+import io.github.naminhyeok.course.core.domain.course.CourseSeats
 import io.github.naminhyeok.course.core.domain.course.CourseService
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
@@ -47,10 +48,10 @@ class CourseControllerTest(
         title = "t",
         description = "d",
         price = BigDecimal("10000"),
-        capacity = 10,
         startAt = baseStart,
         endAt = baseStart.plusDays(7),
         status = status,
+        seats = CourseSeats(capacity = 10, reservedCount = 0),
     )
 
     @Test

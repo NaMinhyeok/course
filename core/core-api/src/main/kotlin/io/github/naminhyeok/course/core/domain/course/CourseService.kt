@@ -6,6 +6,8 @@ import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseEntity
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
+import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsEntity
+import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -13,12 +15,14 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class CourseService(
     private val courseRepository: CourseRepository,
+    private val courseSeatsRepository: CourseSeatsRepository,
 ) {
+    @Transactional
     fun createCourse(
         user: User,
         content: CourseContent,
     ): Long {
-        val saved =
+        val savedCourse =
             courseRepository.save(
                 CourseEntity(
                     creatorId = user.id,
@@ -30,7 +34,13 @@ class CourseService(
                     endAt = content.endAt,
                 ),
             )
-        return saved.id
+        courseSeatsRepository.save(
+            CourseSeatsEntity(
+                courseId = savedCourse.id,
+                capacity = content.capacity,
+            ),
+        )
+        return savedCourse.id
     }
 
     @Transactional
@@ -50,16 +60,35 @@ class CourseService(
     }
 
     fun findCourses(status: CourseStatus?): List<Course> {
-        val courses =
+        val candidateCourses =
             if (status != null) {
                 courseRepository.findByCourseStatus(status)
             } else {
                 courseRepository.findAll()
             }
-        return courses
-            .filter { it.isActive() }
-            .filter { it.courseStatus != CourseStatus.DRAFT }
-            .map { Course.from(it) }
+        val visibleCourses =
+            candidateCourses
+                .filter { it.isActive() }
+                .filter { it.courseStatus != CourseStatus.DRAFT }
+        if (visibleCourses.isEmpty()) return emptyList()
+        val seatsByCourseId =
+            courseSeatsRepository
+                .findByCourseIdIn(visibleCourses.map { it.id })
+                .associateBy { it.courseId }
+        return visibleCourses.map { course ->
+            val seats = seatsByCourseId.getValue(course.id)
+            Course(
+                id = course.id,
+                creatorId = course.creatorId,
+                title = course.title,
+                description = course.description,
+                price = course.price,
+                startAt = course.startAt,
+                endAt = course.endAt,
+                status = course.courseStatus,
+                seats = CourseSeats(capacity = seats.capacity, reservedCount = seats.reservedCount),
+            )
+        }
     }
 
     fun findCourse(courseId: Long): Course {
@@ -68,7 +97,20 @@ class CourseService(
                 .findByIdOrNull(courseId)
                 ?.takeIf { it.isActive() && it.courseStatus != CourseStatus.DRAFT }
                 ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
-        return Course.from(course)
+        val seats =
+            courseSeatsRepository.findByCourseId(course.id)
+                ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
+        return Course(
+            id = course.id,
+            creatorId = course.creatorId,
+            title = course.title,
+            description = course.description,
+            price = course.price,
+            startAt = course.startAt,
+            endAt = course.endAt,
+            status = course.courseStatus,
+            seats = CourseSeats(capacity = seats.capacity, reservedCount = seats.reservedCount),
+        )
     }
 
     private fun requireOwnedCourse(
