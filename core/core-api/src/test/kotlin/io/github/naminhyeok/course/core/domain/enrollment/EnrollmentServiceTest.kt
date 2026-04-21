@@ -188,4 +188,56 @@ class EnrollmentServiceTest(
         assertThatThrownBy { enrollmentService.cancel(user, enrollmentId) }
             .isInstanceOf(IllegalStateException::class.java)
     }
+
+    @Test
+    fun `getEnrollments 는 현재 사용자의 모든 신청을 최신순 Enrollment 로 반환한다`() {
+        val course1 = saveCourseWithSeats()
+        val course2 = saveCourseWithSeats()
+        val firstId = enrollmentService.enroll(user, course1.id)
+        Thread.sleep(10)
+        val secondId = enrollmentService.enroll(user, course2.id)
+
+        val result = enrollmentService.getEnrollments(user, null)
+
+        assertThat(result).extracting("id").containsExactly(secondId, firstId)
+        assertThat(result[0].course.id).isEqualTo(course2.id)
+        assertThat(result[0].course.title).isEqualTo("강의")
+        assertThat(result[0].status).isEqualTo(EnrollmentStatus.PENDING)
+        assertThat(result[0].userId).isEqualTo(user.id)
+        assertThat(result[0].appliedAt).isNotNull()
+    }
+
+    @Test
+    fun `getEnrollments 는 status 필터 적용 시 해당 상태만 반환한다`() {
+        val course1 = saveCourseWithSeats()
+        val course2 = saveCourseWithSeats()
+        val pendingId = enrollmentService.enroll(user, course1.id)
+        val confirmId = enrollmentService.enroll(user, course2.id)
+        enrollmentService.confirm(user, confirmId)
+
+        val result = enrollmentService.getEnrollments(user, EnrollmentStatus.CONFIRMED)
+
+        assertThat(result).extracting("id").containsExactly(confirmId)
+        assertThat(pendingId).isNotEqualTo(confirmId)
+    }
+
+    @Test
+    fun `getEnrollments 는 다른 사용자의 신청은 반환하지 않는다`() {
+        val course = saveCourseWithSeats()
+        val myId = enrollmentService.enroll(user, course.id)
+        val other = User(id = 999L)
+        val otherCourse = saveCourseWithSeats()
+        enrollmentService.enroll(other, otherCourse.id)
+
+        val result = enrollmentService.getEnrollments(user, null)
+
+        assertThat(result).extracting("id").containsExactly(myId)
+    }
+
+    @Test
+    fun `getEnrollments 는 신청이 없으면 빈 리스트를 반환한다`() {
+        val result = enrollmentService.getEnrollments(user, null)
+
+        assertThat(result).isEmpty()
+    }
 }
