@@ -20,7 +20,7 @@ data class CourseSummaryResponse(
                 id = course.id,
                 title = course.title,
                 price = course.price,
-                capacity = course.capacity,
+                capacity = course.seats.capacity,
                 startAt = course.startAt,
                 endAt = course.endAt,
                 status = course.status,

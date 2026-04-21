@@ -60,26 +60,51 @@ class CourseService(
     }
 
     fun findCourses(status: CourseStatus?): List<Course> {
-        val courses =
+        val entities =
             if (status != null) {
                 courseRepository.findByCourseStatus(status)
             } else {
                 courseRepository.findAll()
             }
-        return courses
-            .filter { it.isActive() }
-            .filter { it.courseStatus != CourseStatus.DRAFT }
-            .map { Course.from(it) }
+        val visible =
+            entities
+                .filter { it.isActive() }
+                .filter { it.courseStatus != CourseStatus.DRAFT }
+        if (visible.isEmpty()) return emptyList()
+        val seatsMap =
+            courseSeatsRepository
+                .findByCourseIdIn(visible.map { it.id })
+                .associateBy { it.courseId }
+        return visible.map { entity -> toCourse(entity, seatsMap.getValue(entity.id)) }
     }
 
     fun findCourse(courseId: Long): Course {
-        val course =
+        val entity =
             courseRepository
                 .findByIdOrNull(courseId)
                 ?.takeIf { it.isActive() && it.courseStatus != CourseStatus.DRAFT }
                 ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
-        return Course.from(course)
+        val seats =
+            courseSeatsRepository.findByCourseId(entity.id)
+                ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
+        return toCourse(entity, seats)
     }
+
+    private fun toCourse(
+        entity: CourseEntity,
+        seats: CourseSeatsEntity,
+    ): Course =
+        Course(
+            id = entity.id,
+            creatorId = entity.creatorId,
+            title = entity.title,
+            description = entity.description,
+            price = entity.price,
+            startAt = entity.startAt,
+            endAt = entity.endAt,
+            status = entity.courseStatus,
+            seats = CourseSeats(capacity = seats.capacity, reservedCount = seats.reservedCount),
+        )
 
     private fun requireOwnedCourse(
         user: User,
