@@ -60,51 +60,58 @@ class CourseService(
     }
 
     fun findCourses(status: CourseStatus?): List<Course> {
-        val entities =
+        val candidateCourses =
             if (status != null) {
                 courseRepository.findByCourseStatus(status)
             } else {
                 courseRepository.findAll()
             }
-        val visible =
-            entities
+        val visibleCourses =
+            candidateCourses
                 .filter { it.isActive() }
                 .filter { it.courseStatus != CourseStatus.DRAFT }
-        if (visible.isEmpty()) return emptyList()
-        val seatsMap =
+        if (visibleCourses.isEmpty()) return emptyList()
+        val seatsByCourseId =
             courseSeatsRepository
-                .findByCourseIdIn(visible.map { it.id })
+                .findByCourseIdIn(visibleCourses.map { it.id })
                 .associateBy { it.courseId }
-        return visible.map { entity -> toCourse(entity, seatsMap.getValue(entity.id)) }
+        return visibleCourses.map { course ->
+            val seats = seatsByCourseId.getValue(course.id)
+            Course(
+                id = course.id,
+                creatorId = course.creatorId,
+                title = course.title,
+                description = course.description,
+                price = course.price,
+                startAt = course.startAt,
+                endAt = course.endAt,
+                status = course.courseStatus,
+                seats = CourseSeats(capacity = seats.capacity, reservedCount = seats.reservedCount),
+            )
+        }
     }
 
     fun findCourse(courseId: Long): Course {
-        val entity =
+        val course =
             courseRepository
                 .findByIdOrNull(courseId)
                 ?.takeIf { it.isActive() && it.courseStatus != CourseStatus.DRAFT }
                 ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
         val seats =
-            courseSeatsRepository.findByCourseId(entity.id)
+            courseSeatsRepository.findByCourseId(course.id)
                 ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
-        return toCourse(entity, seats)
-    }
-
-    private fun toCourse(
-        entity: CourseEntity,
-        seats: CourseSeatsEntity,
-    ): Course =
-        Course(
-            id = entity.id,
-            creatorId = entity.creatorId,
-            title = entity.title,
-            description = entity.description,
-            price = entity.price,
-            startAt = entity.startAt,
-            endAt = entity.endAt,
-            status = entity.courseStatus,
+        return Course(
+            id = course.id,
+            creatorId = course.creatorId,
+            title = course.title,
+            description = course.description,
+            price = course.price,
+            startAt = course.startAt,
+            endAt = course.endAt,
+            status = course.courseStatus,
             seats = CourseSeats(capacity = seats.capacity, reservedCount = seats.reservedCount),
         )
+    }
 
     private fun requireOwnedCourse(
         user: User,
