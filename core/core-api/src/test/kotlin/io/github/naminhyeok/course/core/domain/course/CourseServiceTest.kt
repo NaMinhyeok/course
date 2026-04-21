@@ -7,6 +7,7 @@ import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseEntity
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
+import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -18,6 +19,7 @@ import java.time.LocalDateTime
 class CourseServiceTest(
     private val courseService: CourseService,
     private val courseRepository: CourseRepository,
+    private val courseSeatsRepository: CourseSeatsRepository,
 ) : ContextTest() {
     private val creator = User(id = 100L)
     private val baseStart = LocalDateTime.of(2026, 5, 1, 0, 0)
@@ -54,6 +56,16 @@ class CourseServiceTest(
         assertThat(saved.creatorId).isEqualTo(creator.id)
         assertThat(saved.courseStatus).isEqualTo(CourseStatus.DRAFT)
         assertThat(saved.title).isEqualTo("강의")
+    }
+
+    @Test
+    fun `createCourse 는 CourseSeats 를 capacity 와 함께 생성하고 reservedCount 는 0 이다`() {
+        val courseId = courseService.createCourse(creator, content(capacity = 30))
+
+        val seats = courseSeatsRepository.findByCourseId(courseId)
+        assertThat(seats).isNotNull
+        assertThat(seats?.capacity).isEqualTo(30)
+        assertThat(seats?.reservedCount).isEqualTo(0)
     }
 
     @Test

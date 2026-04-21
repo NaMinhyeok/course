@@ -6,6 +6,8 @@ import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseEntity
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
+import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsEntity
+import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -13,12 +15,14 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class CourseService(
     private val courseRepository: CourseRepository,
+    private val courseSeatsRepository: CourseSeatsRepository,
 ) {
+    @Transactional
     fun createCourse(
         user: User,
         content: CourseContent,
     ): Long {
-        val saved =
+        val savedCourse =
             courseRepository.save(
                 CourseEntity(
                     creatorId = user.id,
@@ -30,7 +34,13 @@ class CourseService(
                     endAt = content.endAt,
                 ),
             )
-        return saved.id
+        courseSeatsRepository.save(
+            CourseSeatsEntity(
+                courseId = savedCourse.id,
+                capacity = content.capacity,
+            ),
+        )
+        return savedCourse.id
     }
 
     @Transactional
