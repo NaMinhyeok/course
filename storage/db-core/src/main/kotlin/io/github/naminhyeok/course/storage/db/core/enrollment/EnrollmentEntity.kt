@@ -1,0 +1,26 @@
+package io.github.naminhyeok.course.storage.db.core.enrollment
+
+import io.github.naminhyeok.course.enums.EnrollmentStatus
+import io.github.naminhyeok.course.storage.db.core.BaseEntity
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.Index
+import jakarta.persistence.Table
+
+@Entity
+@Table(
+    name = "enrollment",
+    indexes = [
+        Index(name = "idx_enrollment_user_id", columnList = "userId"),
+    ],
+)
+class EnrollmentEntity(
+    val courseId: Long,
+    val userId: Long,
+    enrollmentStatus: EnrollmentStatus = EnrollmentStatus.PENDING,
+) : BaseEntity() {
+    @Enumerated(EnumType.STRING)
+    final var enrollmentStatus: EnrollmentStatus = enrollmentStatus
+        private set
+}
