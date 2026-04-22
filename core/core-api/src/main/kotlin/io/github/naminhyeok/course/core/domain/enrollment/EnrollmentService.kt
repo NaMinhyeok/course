@@ -25,8 +25,8 @@ class EnrollmentService(
                 .findByIdOrNull(courseId)
                 ?.takeIf { it.isActive() }
                 ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
-        check(course.courseStatus == CourseStatus.OPEN) {
-            "신청 가능한 강의 상태가 아닙니다: ${course.courseStatus}"
+        if (course.courseStatus != CourseStatus.OPEN) {
+            throw CoreException(ErrorType.COURSE_NOT_OPEN)
         }
         return enrollmentProcessor.enroll(user.id, courseId)
     }
