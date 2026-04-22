@@ -1,5 +1,7 @@
 package io.github.naminhyeok.course.storage.db.core.course
 
+import io.github.naminhyeok.course.storage.db.core.course.error.CourseSeatsCapacityExceededException
+import io.github.naminhyeok.course.storage.db.core.course.error.CourseSeatsNotReservedException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -32,11 +34,11 @@ class CourseSeatsEntityTest {
     }
 
     @Test
-    fun `capacity 에 도달한 상태에서 reserve 를 호출하면 IllegalStateException 이 발생한다`() {
+    fun `capacity 에 도달한 상태에서 reserve 를 호출하면 CourseSeatsCapacityExceededException 이 발생한다`() {
         val seats = seatsOf(capacity = 2, reservedCount = 2)
 
         assertThatThrownBy { seats.reserve() }
-            .isInstanceOf(IllegalStateException::class.java)
+            .isInstanceOf(CourseSeatsCapacityExceededException::class.java)
     }
 
     @Test
@@ -49,10 +51,10 @@ class CourseSeatsEntityTest {
     }
 
     @Test
-    fun `reservedCount 가 0 인 상태에서 release 를 호출하면 IllegalStateException 이 발생한다`() {
+    fun `reservedCount 가 0 인 상태에서 release 를 호출하면 CourseSeatsNotReservedException 이 발생한다`() {
         val seats = seatsOf(capacity = 2, reservedCount = 0)
 
         assertThatThrownBy { seats.release() }
-            .isInstanceOf(IllegalStateException::class.java)
+            .isInstanceOf(CourseSeatsNotReservedException::class.java)
     }
 }
