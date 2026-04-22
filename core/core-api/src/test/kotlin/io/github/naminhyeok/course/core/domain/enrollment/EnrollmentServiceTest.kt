@@ -88,11 +88,13 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `enroll 은 정원이 가득 찬 강의에 대해 IllegalStateException 을 던진다`() {
+    fun `enroll 은 정원이 가득 찬 강의에 대해 CAPACITY_EXCEEDED 예외를 던진다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN, capacity = 1, reservedCount = 1)
 
         assertThatThrownBy { enrollmentService.enroll(user, course.id) }
-            .isInstanceOf(IllegalStateException::class.java)
+            .isInstanceOf(CoreException::class.java)
+            .extracting("errorType")
+            .isEqualTo(ErrorType.CAPACITY_EXCEEDED)
     }
 
     @Test
