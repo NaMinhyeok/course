@@ -7,7 +7,10 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 
 class CourseSeatsEntityTest {
-    private fun seatsOf(capacity: Int = 2, reservedCount: Int = 0): CourseSeatsEntity =
+    private fun seatsOf(
+        capacity: Int = 2,
+        reservedCount: Int = 0,
+    ): CourseSeatsEntity =
         CourseSeatsEntity(
             courseId = 1L,
             capacity = capacity,
