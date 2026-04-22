@@ -66,6 +66,7 @@ class EnrollmentRetryExhaustionTest(
         await atMost Duration.ofSeconds(5) until { results.size == contenders }
         executor.shutdown()
 
+        val successCount = results.count { it.isSuccess }
         val conflictCount =
             results.count { it.exceptionOrNull()?.errorType() == ErrorType.ENROLLMENT_CONFLICT }
         val capacityExceededCount =
@@ -73,6 +74,7 @@ class EnrollmentRetryExhaustionTest(
 
         assertThat(conflictCount).isGreaterThan(0)
         assertThat(capacityExceededCount).isZero()
+        assertThat(successCount + conflictCount).isEqualTo(contenders)
     }
 
     private fun saveOpenCourseWithSeats(capacity: Int): CourseEntity {
