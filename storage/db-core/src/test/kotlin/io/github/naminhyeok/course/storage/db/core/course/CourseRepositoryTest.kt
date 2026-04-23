@@ -4,6 +4,8 @@ import io.github.naminhyeok.course.enums.CourseStatus
 import io.github.naminhyeok.course.storage.db.CoreDbContextTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.time.LocalDateTime
@@ -30,26 +32,39 @@ class CourseRepositoryTest(
     }
 
     @Test
-    fun `findByCourseStatus 는 해당 상태의 엔티티만 반환한다`() {
+    fun `findVisibleCourses 는 DRAFT 와 삭제된 엔티티를 제외하고 id 내림차순 Slice 를 반환한다`() {
         courseRepository.save(courseOf(status = CourseStatus.DRAFT))
-        courseRepository.save(courseOf(status = CourseStatus.OPEN))
-        courseRepository.save(courseOf(status = CourseStatus.OPEN))
-        courseRepository.save(courseOf(status = CourseStatus.CLOSED))
+        val oldest = courseRepository.save(courseOf(status = CourseStatus.OPEN))
+        val middle = courseRepository.save(courseOf(status = CourseStatus.CLOSED))
+        val deleted = courseRepository.save(courseOf(status = CourseStatus.OPEN)).also { it.delete() }
+        val latest = courseRepository.save(courseOf(status = CourseStatus.OPEN))
 
-        val openCourses = courseRepository.findByCourseStatus(CourseStatus.OPEN)
+        val result =
+            courseRepository.findVisibleCourses(
+                courseStatus = null,
+                pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "id")),
+            )
 
-        assertThat(openCourses).hasSize(2)
-        assertThat(openCourses).allMatch { it.courseStatus == CourseStatus.OPEN }
+        assertThat(result.content.map { it.id }).containsExactly(latest.id, middle.id)
+        assertThat(result.content.map { it.id }).doesNotContain(oldest.id, deleted.id)
+        assertThat(result.hasNext()).isTrue()
     }
 
     @Test
-    fun `findAll 은 저장된 모든 엔티티를 반환한다`() {
-        courseRepository.save(courseOf(status = CourseStatus.DRAFT))
-        courseRepository.save(courseOf(status = CourseStatus.OPEN))
+    fun `findVisibleCourses 는 상태 필터가 있으면 해당 상태만 반환한다`() {
         courseRepository.save(courseOf(status = CourseStatus.CLOSED))
+        val firstOpen = courseRepository.save(courseOf(status = CourseStatus.OPEN))
+        val secondOpen = courseRepository.save(courseOf(status = CourseStatus.OPEN))
+        courseRepository.save(courseOf(status = CourseStatus.DRAFT))
 
-        val all = courseRepository.findAll()
+        val result =
+            courseRepository.findVisibleCourses(
+                courseStatus = CourseStatus.OPEN,
+                pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id")),
+            )
 
-        assertThat(all).hasSize(3)
+        assertThat(result.content.map { it.id }).containsExactly(secondOpen.id, firstOpen.id)
+        assertThat(result.content).allMatch { it.courseStatus == CourseStatus.OPEN }
+        assertThat(result.hasNext()).isFalse()
     }
 }

@@ -3,11 +3,14 @@ package io.github.naminhyeok.course.core.domain.enrollment
 import io.github.naminhyeok.course.core.domain.course.Course
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
+import io.github.naminhyeok.course.core.support.OffsetLimit
+import io.github.naminhyeok.course.core.support.Page
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
 import io.github.naminhyeok.course.storage.db.core.enrollment.EnrollmentRepository
 import org.springframework.data.repository.findByIdOrNull
+import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -21,16 +24,17 @@ class EnrollmentReader(
     fun getEnrollments(
         userId: Long,
         status: EnrollmentStatus?,
-    ): List<Enrollment> {
-        val enrollments =
-            if (status == null) {
-                enrollmentRepository.findByUserIdOrderByIdDesc(userId)
-            } else {
-                enrollmentRepository.findByUserIdAndEnrollmentStatusOrderByIdDesc(userId, status)
-            }
-        if (enrollments.isEmpty()) return emptyList()
+        offsetLimit: OffsetLimit,
+    ): Page<Enrollment> {
+        val entities =
+            enrollmentRepository.findActiveByUserIdAndEnrollmentStatus(
+                userId = userId,
+                enrollmentStatus = status,
+                pageable = offsetLimit.toPageable(Sort.by(Sort.Direction.DESC, "id")),
+            )
+        if (entities.isEmpty) return Page(emptyList(), hasNext = false)
 
-        val courseIds = enrollments.map { it.courseId }.distinct()
+        val courseIds = entities.content.map { it.courseId }.distinct()
         val courses = courseRepository.findAllById(courseIds)
         val seatsByCourseId = courseSeatsRepository.findByCourseIdIn(courseIds).associateBy { it.courseId }
         val courseMap =
@@ -40,17 +44,21 @@ class EnrollmentReader(
                     course.id to Course.from(course, seatsByCourseId[course.id]!!)
                 }
 
-        return enrollments
-            .filter { courseMap.containsKey(it.courseId) }
-            .map { entity ->
-                Enrollment(
-                    id = entity.id,
-                    userId = entity.userId,
-                    course = courseMap[entity.courseId]!!,
-                    status = entity.enrollmentStatus,
-                    appliedAt = entity.createdAt,
-                )
-            }
+        return Page(
+            content =
+                entities.content
+                    .filter { courseMap.containsKey(it.courseId) }
+                    .map { entity ->
+                        Enrollment(
+                            id = entity.id,
+                            userId = entity.userId,
+                            course = courseMap[entity.courseId]!!,
+                            status = entity.enrollmentStatus,
+                            appliedAt = entity.createdAt,
+                        )
+                    },
+            hasNext = entities.hasNext(),
+        )
     }
 
     fun getConfirmedEnrollmentsByCourse(courseId: Long): List<Enrollment> {

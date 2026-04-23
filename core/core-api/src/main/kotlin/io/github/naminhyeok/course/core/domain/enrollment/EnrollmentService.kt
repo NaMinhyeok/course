@@ -1,6 +1,8 @@
 package io.github.naminhyeok.course.core.domain.enrollment
 
 import io.github.naminhyeok.course.core.domain.User
+import io.github.naminhyeok.course.core.support.OffsetLimit
+import io.github.naminhyeok.course.core.support.Page
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
@@ -81,7 +83,8 @@ class EnrollmentService(
     fun getEnrollments(
         user: User,
         status: EnrollmentStatus?,
-    ): List<Enrollment> = enrollmentReader.getEnrollments(user.id, status)
+        offsetLimit: OffsetLimit,
+    ): Page<Enrollment> = enrollmentReader.getEnrollments(user.id, status, offsetLimit)
 
     fun getConfirmedCourseEnrollments(
         user: User,

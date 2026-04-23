@@ -2,6 +2,7 @@ package io.github.naminhyeok.course.core.domain.enrollment
 
 import io.github.naminhyeok.course.ContextTest
 import io.github.naminhyeok.course.core.domain.User
+import io.github.naminhyeok.course.core.support.OffsetLimit
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
@@ -204,14 +205,15 @@ class EnrollmentServiceTest(
         val firstId = enrollmentService.enroll(user, course1.id)
         val secondId = enrollmentService.enroll(user, course2.id)
 
-        val result = enrollmentService.getEnrollments(user, null)
+        val result = enrollmentService.getEnrollments(user, null, OffsetLimit(0, 10))
 
-        assertThat(result).extracting("id").containsExactly(secondId, firstId)
-        assertThat(result[0].course.id).isEqualTo(course2.id)
-        assertThat(result[0].course.title).isEqualTo("강의")
-        assertThat(result[0].status).isEqualTo(EnrollmentStatus.PENDING)
-        assertThat(result[0].userId).isEqualTo(user.id)
-        assertThat(result[0].appliedAt).isNotNull()
+        assertThat(result.content).extracting("id").containsExactly(secondId, firstId)
+        assertThat(result.content[0].course.id).isEqualTo(course2.id)
+        assertThat(result.content[0].course.title).isEqualTo("강의")
+        assertThat(result.content[0].status).isEqualTo(EnrollmentStatus.PENDING)
+        assertThat(result.content[0].userId).isEqualTo(user.id)
+        assertThat(result.content[0].appliedAt).isNotNull()
+        assertThat(result.hasNext).isFalse()
     }
 
     @Test
@@ -222,10 +224,11 @@ class EnrollmentServiceTest(
         val confirmId = enrollmentService.enroll(user, course2.id)
         enrollmentService.confirm(user, confirmId)
 
-        val result = enrollmentService.getEnrollments(user, EnrollmentStatus.CONFIRMED)
+        val result = enrollmentService.getEnrollments(user, EnrollmentStatus.CONFIRMED, OffsetLimit(0, 10))
 
-        assertThat(result).extracting("id").containsExactly(confirmId)
+        assertThat(result.content).extracting("id").containsExactly(confirmId)
         assertThat(pendingId).isNotEqualTo(confirmId)
+        assertThat(result.hasNext).isFalse()
     }
 
     @Test
@@ -236,16 +239,36 @@ class EnrollmentServiceTest(
         val otherCourse = saveCourseWithSeats()
         enrollmentService.enroll(other, otherCourse.id)
 
-        val result = enrollmentService.getEnrollments(user, null)
+        val result = enrollmentService.getEnrollments(user, null, OffsetLimit(0, 10))
 
-        assertThat(result).extracting("id").containsExactly(myId)
+        assertThat(result.content).extracting("id").containsExactly(myId)
     }
 
     @Test
-    fun `getEnrollments 는 신청이 없으면 빈 리스트를 반환한다`() {
-        val result = enrollmentService.getEnrollments(user, null)
+    fun `getEnrollments 는 신청이 없으면 빈 페이지를 반환한다`() {
+        val result = enrollmentService.getEnrollments(user, null, OffsetLimit(0, 10))
 
-        assertThat(result).isEmpty()
+        assertThat(result.content).isEmpty()
+        assertThat(result.hasNext).isFalse()
+    }
+
+    @Test
+    fun `getEnrollments 는 offset limit 기준으로 페이지를 반환하고 hasNext 를 계산한다`() {
+        val course1 = saveCourseWithSeats()
+        val course2 = saveCourseWithSeats()
+        val course3 = saveCourseWithSeats()
+        val firstId = enrollmentService.enroll(user, course1.id)
+        val secondId = enrollmentService.enroll(user, course2.id)
+        val thirdId = enrollmentService.enroll(user, course3.id)
+
+        val firstPage = enrollmentService.getEnrollments(user, null, OffsetLimit(0, 2))
+        val secondPage = enrollmentService.getEnrollments(user, null, OffsetLimit(1, 1))
+
+        assertThat(firstPage.content).extracting("id").containsExactly(thirdId, secondId)
+        assertThat(firstPage.hasNext).isTrue()
+        assertThat(secondPage.content).extracting("id").containsExactly(secondId)
+        assertThat(secondPage.hasNext).isTrue()
+        assertThat(secondPage.content).extracting("id").doesNotContain(firstId)
     }
 
     @Test
