@@ -5,12 +5,12 @@ import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.core.support.OffsetLimit
 import io.github.naminhyeok.course.core.support.Page
+import io.github.naminhyeok.course.enums.EntityStatus
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
 import io.github.naminhyeok.course.storage.db.core.enrollment.EnrollmentRepository
 import org.springframework.data.repository.findByIdOrNull
-import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -27,11 +27,21 @@ class EnrollmentReader(
         offsetLimit: OffsetLimit,
     ): Page<Enrollment> {
         val entities =
-            enrollmentRepository.findActiveByUserIdAndEnrollmentStatus(
-                userId = userId,
-                enrollmentStatus = status,
-                pageable = offsetLimit.toPageable(Sort.by(Sort.Direction.DESC, "id")),
-            )
+            when (status) {
+                null ->
+                    enrollmentRepository.findByUserIdAndStatusOrderByIdDesc(
+                        userId = userId,
+                        status = EntityStatus.ACTIVE,
+                        pageable = offsetLimit.toPageable(),
+                    )
+                else ->
+                    enrollmentRepository.findByUserIdAndStatusAndEnrollmentStatusOrderByIdDesc(
+                        userId = userId,
+                        status = EntityStatus.ACTIVE,
+                        enrollmentStatus = status,
+                        pageable = offsetLimit.toPageable(),
+                    )
+            }
         if (entities.isEmpty) return Page(emptyList(), hasNext = false)
 
         val courseIds = entities.content.map { it.courseId }.distinct()

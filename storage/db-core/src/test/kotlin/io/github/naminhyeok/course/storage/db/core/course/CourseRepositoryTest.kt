@@ -1,6 +1,7 @@
 package io.github.naminhyeok.course.storage.db.core.course
 
 import io.github.naminhyeok.course.enums.CourseStatus
+import io.github.naminhyeok.course.enums.EntityStatus
 import io.github.naminhyeok.course.storage.db.CoreDbContextTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -32,7 +33,7 @@ class CourseRepositoryTest(
     }
 
     @Test
-    fun `findVisibleCourses 는 DRAFT 와 삭제된 엔티티를 제외하고 id 내림차순 Slice 를 반환한다`() {
+    fun `findByStatusAndCourseStatusNotOrderByIdDesc 는 DRAFT 와 삭제된 엔티티를 제외하고 id 내림차순 Slice 를 반환한다`() {
         courseRepository.save(courseOf(status = CourseStatus.DRAFT))
         val oldest = courseRepository.save(courseOf(status = CourseStatus.OPEN))
         val middle = courseRepository.save(courseOf(status = CourseStatus.CLOSED))
@@ -40,8 +41,9 @@ class CourseRepositoryTest(
         val latest = courseRepository.save(courseOf(status = CourseStatus.OPEN))
 
         val result =
-            courseRepository.findVisibleCourses(
-                courseStatus = null,
+            courseRepository.findByStatusAndCourseStatusNotOrderByIdDesc(
+                status = EntityStatus.ACTIVE,
+                excludedStatus = CourseStatus.DRAFT,
                 pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "id")),
             )
 
@@ -51,14 +53,15 @@ class CourseRepositoryTest(
     }
 
     @Test
-    fun `findVisibleCourses 는 상태 필터가 있으면 해당 상태만 반환한다`() {
+    fun `findByStatusAndCourseStatusOrderByIdDesc 는 상태 필터가 있으면 해당 상태만 반환한다`() {
         courseRepository.save(courseOf(status = CourseStatus.CLOSED))
         val firstOpen = courseRepository.save(courseOf(status = CourseStatus.OPEN))
         val secondOpen = courseRepository.save(courseOf(status = CourseStatus.OPEN))
         courseRepository.save(courseOf(status = CourseStatus.DRAFT))
 
         val result =
-            courseRepository.findVisibleCourses(
+            courseRepository.findByStatusAndCourseStatusOrderByIdDesc(
+                status = EntityStatus.ACTIVE,
                 courseStatus = CourseStatus.OPEN,
                 pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id")),
             )

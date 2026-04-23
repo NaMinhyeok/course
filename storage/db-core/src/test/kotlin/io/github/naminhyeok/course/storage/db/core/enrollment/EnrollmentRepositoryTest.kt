@@ -1,5 +1,6 @@
 package io.github.naminhyeok.course.storage.db.core.enrollment
 
+import io.github.naminhyeok.course.enums.EntityStatus
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.CoreDbContextTest
 import org.assertj.core.api.Assertions.assertThat
@@ -26,7 +27,7 @@ class EnrollmentRepositoryTest(
     }
 
     @Test
-    fun `findActiveByUserIdAndEnrollmentStatus 는 사용자 신청을 id 내림차순 Slice 로 반환한다`() {
+    fun `findByUserIdAndStatusOrderByIdDesc 는 사용자 신청을 id 내림차순 Slice 로 반환한다`() {
         val oldest = enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 100L))
         val middle = enrollmentRepository.save(EnrollmentEntity(courseId = 2L, userId = 100L))
         enrollmentRepository.save(EnrollmentEntity(courseId = 3L, userId = 999L))
@@ -34,9 +35,9 @@ class EnrollmentRepositoryTest(
         val latest = enrollmentRepository.save(EnrollmentEntity(courseId = 5L, userId = 100L))
 
         val result =
-            enrollmentRepository.findActiveByUserIdAndEnrollmentStatus(
+            enrollmentRepository.findByUserIdAndStatusOrderByIdDesc(
                 userId = 100L,
-                enrollmentStatus = null,
+                status = EntityStatus.ACTIVE,
                 pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "id")),
             )
 
@@ -46,7 +47,7 @@ class EnrollmentRepositoryTest(
     }
 
     @Test
-    fun `findActiveByUserIdAndEnrollmentStatus 는 상태 필터가 있으면 해당 상태만 반환한다`() {
+    fun `findByUserIdAndStatusAndEnrollmentStatusOrderByIdDesc 는 상태 필터가 있으면 해당 상태만 반환한다`() {
         enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 100L))
         val firstConfirmed = enrollmentRepository.save(EnrollmentEntity(courseId = 2L, userId = 100L)).also { it.confirm() }
         val secondConfirmed = enrollmentRepository.save(EnrollmentEntity(courseId = 3L, userId = 100L)).also { it.confirm() }
@@ -57,8 +58,9 @@ class EnrollmentRepositoryTest(
         enrollmentRepository.save(EnrollmentEntity(courseId = 4L, userId = 999L)).also { it.confirm() }
 
         val result =
-            enrollmentRepository.findActiveByUserIdAndEnrollmentStatus(
+            enrollmentRepository.findByUserIdAndStatusAndEnrollmentStatusOrderByIdDesc(
                 userId = 100L,
+                status = EntityStatus.ACTIVE,
                 enrollmentStatus = EnrollmentStatus.CONFIRMED,
                 pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id")),
             )
