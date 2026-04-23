@@ -26,7 +26,7 @@ class EnrollmentReader(
         status: EnrollmentStatus?,
         offsetLimit: OffsetLimit,
     ): Page<Enrollment> {
-        val entities =
+        val enrollments =
             when (status) {
                 null ->
                     enrollmentRepository.findByUserIdAndStatusOrderByIdDesc(
@@ -42,9 +42,9 @@ class EnrollmentReader(
                         pageable = offsetLimit.toPageable(),
                     )
             }
-        if (entities.isEmpty) return Page(emptyList(), hasNext = false)
+        if (enrollments.isEmpty) return Page(emptyList(), hasNext = false)
 
-        val courseIds = entities.content.map { it.courseId }.distinct()
+        val courseIds = enrollments.content.map { it.courseId }.distinct()
         val courses = courseRepository.findAllById(courseIds)
         val seatsByCourseId = courseSeatsRepository.findByCourseIdIn(courseIds).associateBy { it.courseId }
         val courseMap =
@@ -56,7 +56,7 @@ class EnrollmentReader(
 
         return Page(
             content =
-                entities.content
+                enrollments.content
                     .filter { courseMap.containsKey(it.courseId) }
                     .map { entity ->
                         Enrollment(
@@ -67,7 +67,7 @@ class EnrollmentReader(
                             appliedAt = entity.createdAt,
                         )
                     },
-            hasNext = entities.hasNext(),
+            hasNext = enrollments.hasNext(),
         )
     }
 
