@@ -14,7 +14,7 @@ class EnrollmentEntityTest {
             enrollmentStatus = status,
             confirmedAt =
                 when (status) {
-                    EnrollmentStatus.CONFIRMED -> LocalDateTime.of(2026, 4, 23, 10, 0)
+                    EnrollmentStatus.CONFIRMED, EnrollmentStatus.CANCELLED -> LocalDateTime.of(2026, 4, 23, 10, 0)
                     else -> null
                 },
         )
@@ -48,6 +48,18 @@ class EnrollmentEntityTest {
                 courseId = 1L,
                 userId = 100L,
                 enrollmentStatus = EnrollmentStatus.CONFIRMED,
+                confirmedAt = null,
+            )
+        }.isInstanceOf(IllegalStateException::class.java)
+    }
+
+    @Test
+    fun `CANCELLED 상태에서 confirmedAt 이 없으면 생성할 수 없다`() {
+        assertThatThrownBy {
+            EnrollmentEntity(
+                courseId = 1L,
+                userId = 100L,
+                enrollmentStatus = EnrollmentStatus.CANCELLED,
                 confirmedAt = null,
             )
         }.isInstanceOf(IllegalStateException::class.java)

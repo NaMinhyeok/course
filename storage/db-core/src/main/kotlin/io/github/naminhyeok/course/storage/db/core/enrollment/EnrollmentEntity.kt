@@ -34,8 +34,8 @@ class EnrollmentEntity(
         check(!(enrollmentStatus == EnrollmentStatus.PENDING && confirmedAt != null)) {
             "PENDING 상태에서는 confirmedAt 이 없어야 합니다"
         }
-        check(!(enrollmentStatus == EnrollmentStatus.CONFIRMED && confirmedAt == null)) {
-            "CONFIRMED 상태에서는 confirmedAt 이 필요합니다"
+        check(enrollmentStatus == EnrollmentStatus.PENDING || confirmedAt != null) {
+            "${enrollmentStatus} 상태에서는 confirmedAt 이 필요합니다"
         }
     }
 
