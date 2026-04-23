@@ -7,8 +7,9 @@ import org.springframework.data.domain.Slice
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface EnrollmentRepository : JpaRepository<EnrollmentEntity, Long> {
-    fun findByCourseIdAndEnrollmentStatusOrderByIdDesc(
+    fun findByCourseIdAndStatusAndEnrollmentStatusOrderByIdDesc(
         courseId: Long,
+        status: EntityStatus,
         enrollmentStatus: EnrollmentStatus,
     ): List<EnrollmentEntity>
 

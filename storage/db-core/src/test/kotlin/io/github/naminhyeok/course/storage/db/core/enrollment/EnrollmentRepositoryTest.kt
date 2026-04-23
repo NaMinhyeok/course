@@ -14,7 +14,7 @@ class EnrollmentRepositoryTest(
     private val enrollmentRepository: EnrollmentRepository,
 ) : CoreDbContextTest() {
     @Test
-    fun `findByUserIdAndStatusOrderByIdDesc 는 사용자 신청을 id 내림차순 Slice 로 반환한다`() {
+    fun `사용자 신청 조회는 활성 신청만 최신순으로 반환한다`() {
         val oldest = enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 100L))
         val middle = enrollmentRepository.save(EnrollmentEntity(courseId = 2L, userId = 100L))
         enrollmentRepository.save(EnrollmentEntity(courseId = 3L, userId = 999L))
@@ -34,7 +34,7 @@ class EnrollmentRepositoryTest(
     }
 
     @Test
-    fun `findByUserIdAndStatusAndEnrollmentStatusOrderByIdDesc 는 상태 필터가 있으면 해당 상태만 반환한다`() {
+    fun `사용자 신청 조회는 상태 조건이 있으면 해당 상태만 반환한다`() {
         enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 100L))
         val firstConfirmed = enrollmentRepository.save(EnrollmentEntity(courseId = 2L, userId = 100L)).also { it.confirm() }
         val secondConfirmed = enrollmentRepository.save(EnrollmentEntity(courseId = 3L, userId = 100L)).also { it.confirm() }
@@ -58,20 +58,25 @@ class EnrollmentRepositoryTest(
     }
 
     @Test
-    fun `findByCourseIdAndEnrollmentStatusOrderByIdDesc 는 주어진 courseId 와 status 의 신청만 최신순으로 반환한다`() {
+    fun `강의별 확정 신청 조회는 확정된 신청만 최신순으로 반환한다`() {
         val firstConfirmed = enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 100L)).also { it.confirm() }
-        val pending = enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 101L))
+        val deletedConfirmed =
+            enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 101L)).also {
+                it.confirm()
+                it.delete()
+            }
         val secondConfirmed = enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 102L)).also { it.confirm() }
         enrollmentRepository.save(EnrollmentEntity(courseId = 2L, userId = 103L)).also { it.confirm() }
 
         val result =
-            enrollmentRepository.findByCourseIdAndEnrollmentStatusOrderByIdDesc(
-                1L,
-                EnrollmentStatus.CONFIRMED,
+            enrollmentRepository.findByCourseIdAndStatusAndEnrollmentStatusOrderByIdDesc(
+                courseId = 1L,
+                status = EntityStatus.ACTIVE,
+                enrollmentStatus = EnrollmentStatus.CONFIRMED,
             )
 
         assertThat(result).extracting("id").containsExactly(secondConfirmed.id, firstConfirmed.id)
         assertThat(result).allMatch { it.courseId == 1L && it.enrollmentStatus == EnrollmentStatus.CONFIRMED }
-        assertThat(pending.id).isNotEqualTo(secondConfirmed.id)
+        assertThat(result).extracting("id").doesNotContain(deletedConfirmed.id)
     }
 }

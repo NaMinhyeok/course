@@ -63,8 +63,15 @@ class CourseServiceTest(
         return entity
     }
 
+    private fun assertCoreError(expected: ErrorType, action: () -> Unit) {
+        assertThatThrownBy(action)
+            .isInstanceOf(CoreException::class.java)
+            .extracting("errorType")
+            .isEqualTo(expected)
+    }
+
     @Test
-    fun `createCourse 는 DRAFT 상태로 저장하고 id 를 반환한다`() {
+    fun `강의 생성은 초안 상태로 저장되고 식별자를 반환한다`() {
         val courseId = courseService.createCourse(creator, content())
 
         val saved = courseRepository.findById(courseId).orElseThrow()
@@ -74,7 +81,7 @@ class CourseServiceTest(
     }
 
     @Test
-    fun `createCourse 는 CourseSeats 를 capacity 와 함께 생성하고 reservedCount 는 0 이다`() {
+    fun `강의 생성은 좌석 정보를 함께 만든다`() {
         val courseId = courseService.createCourse(creator, content(capacity = 30))
 
         val seats = courseSeatsRepository.findByCourseId(courseId)
@@ -84,7 +91,7 @@ class CourseServiceTest(
     }
 
     @Test
-    fun `openCourse 는 DRAFT 를 OPEN 으로 전이한다`() {
+    fun `강의 공개는 초안을 공개 상태로 전환한다`() {
         val entity = courseRepository.save(courseEntityOf(status = CourseStatus.DRAFT))
 
         courseService.openCourse(creator, entity.id)
@@ -94,26 +101,24 @@ class CourseServiceTest(
     }
 
     @Test
-    fun `openCourse 는 소유자가 아니면 ACCESS_DENIED 예외를 던진다`() {
+    fun `강의 공개는 소유자만 수행할 수 있다`() {
         val entity = courseRepository.save(courseEntityOf(creatorId = creator.id, status = CourseStatus.DRAFT))
         val other = User(id = 999L)
 
-        assertThatThrownBy { courseService.openCourse(other, entity.id) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.ACCESS_DENIED)
+        assertCoreError(ErrorType.ACCESS_DENIED) {
+            courseService.openCourse(other, entity.id)
+        }
     }
 
     @Test
-    fun `openCourse 는 존재하지 않는 강의면 NOT_FOUND_DATA 예외를 던진다`() {
-        assertThatThrownBy { courseService.openCourse(creator, 99999L) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.NOT_FOUND_DATA)
+    fun `강의 공개는 존재하지 않는 강의를 찾을 수 없다`() {
+        assertCoreError(ErrorType.NOT_FOUND_DATA) {
+            courseService.openCourse(creator, 99999L)
+        }
     }
 
     @Test
-    fun `closeCourse 는 OPEN 을 CLOSED 로 전이한다`() {
+    fun `강의 종료는 공개 상태를 종료 상태로 전환한다`() {
         val entity = courseRepository.save(courseEntityOf(status = CourseStatus.OPEN))
 
         courseService.closeCourse(creator, entity.id)
@@ -123,7 +128,7 @@ class CourseServiceTest(
     }
 
     @Test
-    fun `closeCourse 는 DRAFT 상태에서 호출하면 IllegalStateException 을 던진다`() {
+    fun `강의 종료는 초안 강의에 대해 상태 예외를 던진다`() {
         val entity = courseRepository.save(courseEntityOf(status = CourseStatus.DRAFT))
 
         assertThatThrownBy { courseService.closeCourse(creator, entity.id) }
@@ -131,7 +136,7 @@ class CourseServiceTest(
     }
 
     @Test
-    fun `openCourse 는 CLOSED 상태에서 호출하면 IllegalStateException 을 던진다`() {
+    fun `강의 공개는 종료된 강의에 대해 상태 예외를 던진다`() {
         val entity = courseRepository.save(courseEntityOf(status = CourseStatus.CLOSED))
 
         assertThatThrownBy { courseService.openCourse(creator, entity.id) }
@@ -139,7 +144,7 @@ class CourseServiceTest(
     }
 
     @Test
-    fun `findCourses 는 status 필터 없이 호출하면 DRAFT 를 제외한다`() {
+    fun `강의 목록 조회는 초안 강의를 제외한다`() {
         val draft = saveCourseWithSeats(status = CourseStatus.DRAFT)
         val open = saveCourseWithSeats(status = CourseStatus.OPEN)
         val closed = saveCourseWithSeats(status = CourseStatus.CLOSED)
@@ -152,7 +157,7 @@ class CourseServiceTest(
     }
 
     @Test
-    fun `findCourses 에 OPEN 을 지정하면 OPEN 만 반환한다`() {
+    fun `강의 목록 조회는 상태 조건에 맞는 강의만 반환한다`() {
         val open = saveCourseWithSeats(status = CourseStatus.OPEN)
         saveCourseWithSeats(status = CourseStatus.CLOSED)
         saveCourseWithSeats(status = CourseStatus.DRAFT)
@@ -165,7 +170,7 @@ class CourseServiceTest(
     }
 
     @Test
-    fun `findCourses 는 offset limit 기준으로 페이지를 반환하고 hasNext 를 계산한다`() {
+    fun `강의 목록 조회는 offset limit 기준으로 페이지를 반환하고 다음 페이지 여부를 계산한다`() {
         val oldest = saveCourseWithSeats(status = CourseStatus.OPEN)
         val middle = saveCourseWithSeats(status = CourseStatus.CLOSED)
         val latest = saveCourseWithSeats(status = CourseStatus.OPEN)
@@ -181,7 +186,7 @@ class CourseServiceTest(
     }
 
     @Test
-    fun `findCourse 는 공개된 강의를 seats 정보와 함께 반환한다`() {
+    fun `강의 상세 조회는 공개 강의를 좌석 정보와 함께 반환한다`() {
         val entity = saveCourseWithSeats(status = CourseStatus.OPEN, capacity = 30, reservedCount = 5)
 
         val course = courseService.findCourse(entity.id)
@@ -193,20 +198,18 @@ class CourseServiceTest(
     }
 
     @Test
-    fun `findCourse 는 DRAFT 강의면 NOT_FOUND_DATA 예외를 던진다`() {
+    fun `강의 상세 조회는 초안 강의를 찾을 수 없다`() {
         val entity = courseRepository.save(courseEntityOf(status = CourseStatus.DRAFT))
 
-        assertThatThrownBy { courseService.findCourse(entity.id) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.NOT_FOUND_DATA)
+        assertCoreError(ErrorType.NOT_FOUND_DATA) {
+            courseService.findCourse(entity.id)
+        }
     }
 
     @Test
-    fun `findCourse 는 존재하지 않는 id 면 NOT_FOUND_DATA 예외를 던진다`() {
-        assertThatThrownBy { courseService.findCourse(99999L) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.NOT_FOUND_DATA)
+    fun `강의 상세 조회는 존재하지 않는 강의를 찾을 수 없다`() {
+        assertCoreError(ErrorType.NOT_FOUND_DATA) {
+            courseService.findCourse(99999L)
+        }
     }
 }

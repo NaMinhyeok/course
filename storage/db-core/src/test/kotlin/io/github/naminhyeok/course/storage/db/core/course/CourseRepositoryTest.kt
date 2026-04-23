@@ -33,11 +33,11 @@ class CourseRepositoryTest(
     }
 
     @Test
-    fun `findByStatusAndCourseStatusNotOrderByIdDesc 는 DRAFT 와 삭제된 엔티티를 제외하고 id 내림차순 Slice 를 반환한다`() {
-        courseRepository.save(courseOf(status = CourseStatus.DRAFT))
+    fun `강의 목록 조회는 초안과 삭제된 강의를 제외한다`() {
         val oldest = courseRepository.save(courseOf(status = CourseStatus.OPEN))
         val middle = courseRepository.save(courseOf(status = CourseStatus.CLOSED))
         val deleted = courseRepository.save(courseOf(status = CourseStatus.OPEN)).also { it.delete() }
+        val draft = courseRepository.save(courseOf(status = CourseStatus.DRAFT))
         val latest = courseRepository.save(courseOf(status = CourseStatus.OPEN))
 
         val result =
@@ -48,15 +48,16 @@ class CourseRepositoryTest(
             )
 
         assertThat(result.content.map { it.id }).containsExactly(latest.id, middle.id)
-        assertThat(result.content.map { it.id }).doesNotContain(oldest.id, deleted.id)
+        assertThat(result.content.map { it.id }).doesNotContain(oldest.id, deleted.id, draft.id)
         assertThat(result.hasNext()).isTrue()
     }
 
     @Test
-    fun `findByStatusAndCourseStatusOrderByIdDesc 는 상태 필터가 있으면 해당 상태만 반환한다`() {
+    fun `강의 목록 조회는 상태 조건이 있으면 해당 상태만 반환한다`() {
         courseRepository.save(courseOf(status = CourseStatus.CLOSED))
         val firstOpen = courseRepository.save(courseOf(status = CourseStatus.OPEN))
         val secondOpen = courseRepository.save(courseOf(status = CourseStatus.OPEN))
+        val deletedOpen = courseRepository.save(courseOf(status = CourseStatus.OPEN)).also { it.delete() }
         courseRepository.save(courseOf(status = CourseStatus.DRAFT))
 
         val result =
@@ -68,6 +69,7 @@ class CourseRepositoryTest(
 
         assertThat(result.content.map { it.id }).containsExactly(secondOpen.id, firstOpen.id)
         assertThat(result.content).allMatch { it.courseStatus == CourseStatus.OPEN }
+        assertThat(result.content.map { it.id }).doesNotContain(deletedOpen.id)
         assertThat(result.hasNext()).isFalse()
     }
 }
