@@ -163,6 +163,21 @@ class EnrollmentServiceTest(
     }
 
     @Test
+    fun `cancel 은 confirm 후에도 confirmedAt 을 유지한다`() {
+        val course = saveCourseWithSeats(status = CourseStatus.OPEN)
+        val enrollmentId = enrollmentService.enroll(user, course.id)
+        enrollmentService.confirm(user, enrollmentId)
+        val confirmedAt = enrollmentRepository.findById(enrollmentId).orElseThrow().confirmedAt
+
+        enrollmentService.cancel(user, enrollmentId)
+
+        val found = enrollmentRepository.findById(enrollmentId).orElseThrow()
+        assertThat(confirmedAt).isNotNull()
+        assertThat(found.enrollmentStatus).isEqualTo(EnrollmentStatus.CANCELLED)
+        assertThat(found.confirmedAt).isEqualTo(confirmedAt)
+    }
+
+    @Test
     fun `cancel 은 confirmedAt 기준 7일 이내면 취소할 수 있다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN, reservedCount = 1)
         val enrollment =

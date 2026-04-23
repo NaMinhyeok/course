@@ -6,10 +6,15 @@ import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.core.enrollment.EnrollmentEntity
 import org.springframework.stereotype.Component
+import java.time.Clock
 import java.time.LocalDateTime
 
 @Component
-class EnrollmentCancelPolicyValidator {
+class EnrollmentCancelPolicyValidator(
+    private val clock: Clock,
+) {
+    constructor() : this(Clock.systemDefaultZone())
+
     fun validate(
         user: User,
         enrollment: EnrollmentEntity,
@@ -20,10 +25,8 @@ class EnrollmentCancelPolicyValidator {
         check(enrollment.enrollmentStatus == EnrollmentStatus.CONFIRMED) {
             "CONFIRMED 상태에서만 취소할 수 있습니다: ${enrollment.enrollmentStatus}"
         }
-        val confirmedAt = checkNotNull(enrollment.confirmedAt) {
-            "CONFIRMED 상태의 수강 신청에는 confirmedAt 이 필요합니다"
-        }
-        if (confirmedAt.plusDays(CANCEL_AVAILABLE_DAYS).isBefore(LocalDateTime.now())) {
+        val confirmedAt = enrollment.confirmedAt ?: throw CoreException(ErrorType.INVALID_REQUEST)
+        if (confirmedAt.plusDays(CANCEL_AVAILABLE_DAYS).isBefore(LocalDateTime.now(clock))) {
             throw CoreException(ErrorType.ENROLLMENT_CANCEL_EXPIRED)
         }
     }

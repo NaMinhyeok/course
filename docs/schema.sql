@@ -32,6 +32,17 @@ CREATE TABLE course_seats (
     UNIQUE INDEX udx_course_seats_course_id (course_id)
 );
 
+-- confirmed_at 수동 마이그레이션/백필 예시
+-- ALTER TABLE enrollment ADD COLUMN confirmed_at DATETIME(6) NULL AFTER enrollment_status;
+-- UPDATE enrollment
+-- SET confirmed_at = updated_at
+-- WHERE enrollment_status = 'CONFIRMED'
+--   AND confirmed_at IS NULL;
+-- UPDATE enrollment
+-- SET confirmed_at = updated_at
+-- WHERE enrollment_status = 'CANCELLED'
+--   AND confirmed_at IS NULL;
+
 CREATE TABLE enrollment (
     id                 BIGINT        NOT NULL AUTO_INCREMENT,
     course_id          BIGINT        NOT NULL,
