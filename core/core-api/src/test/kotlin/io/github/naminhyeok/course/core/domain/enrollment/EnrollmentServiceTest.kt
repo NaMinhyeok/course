@@ -161,16 +161,17 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `cancel 은 PENDING Enrollment 도 CANCELLED 로 전이하고 reservedCount 를 1 감소시킨다`() {
+    fun `cancel 은 PENDING 상태의 Enrollment 를 취소할 수 없고 reservedCount 를 유지한다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN)
         val enrollmentId = enrollmentService.enroll(user, course.id)
 
-        enrollmentService.cancel(user, enrollmentId)
+        assertThatThrownBy { enrollmentService.cancel(user, enrollmentId) }
+            .isInstanceOf(IllegalStateException::class.java)
 
         val enrollment = enrollmentRepository.findById(enrollmentId).orElseThrow()
-        assertThat(enrollment.enrollmentStatus).isEqualTo(EnrollmentStatus.CANCELLED)
+        assertThat(enrollment.enrollmentStatus).isEqualTo(EnrollmentStatus.PENDING)
         val seats = courseSeatsRepository.findByCourseId(course.id)
-        assertThat(seats?.reservedCount).isEqualTo(0)
+        assertThat(seats?.reservedCount).isEqualTo(1)
     }
 
     @Test
@@ -189,6 +190,7 @@ class EnrollmentServiceTest(
     fun `cancel 은 이미 CANCELLED 인 Enrollment 에 대해 IllegalStateException 을 던진다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN)
         val enrollmentId = enrollmentService.enroll(user, course.id)
+        enrollmentService.confirm(user, enrollmentId)
         enrollmentService.cancel(user, enrollmentId)
 
         assertThatThrownBy { enrollmentService.cancel(user, enrollmentId) }

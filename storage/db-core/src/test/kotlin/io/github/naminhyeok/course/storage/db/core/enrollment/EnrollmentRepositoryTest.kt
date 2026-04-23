@@ -38,7 +38,10 @@ class EnrollmentRepositoryTest(
     fun `findByUserIdAndEnrollmentStatusOrderByIdDesc 는 주어진 userId 와 status 의 신청만 최신순으로 반환한다`() {
         val pending = enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 100L))
         val confirmed = enrollmentRepository.save(EnrollmentEntity(courseId = 2L, userId = 100L)).also { it.confirm() }
-        enrollmentRepository.save(EnrollmentEntity(courseId = 3L, userId = 100L)).also { it.cancel() }
+        enrollmentRepository.save(EnrollmentEntity(courseId = 3L, userId = 100L)).also {
+            it.confirm()
+            it.cancel()
+        }
         enrollmentRepository.save(EnrollmentEntity(courseId = 4L, userId = 999L)).also { it.confirm() }
 
         val result =

@@ -35,12 +35,11 @@ class EnrollmentEntityTest {
     }
 
     @Test
-    fun `PENDING 상태에서 cancel 을 호출하면 CANCELLED 로 전이된다`() {
+    fun `PENDING 상태에서는 cancel 할 수 없다`() {
         val enrollment = enrollmentOf(EnrollmentStatus.PENDING)
 
-        enrollment.cancel()
-
-        assertThat(enrollment.enrollmentStatus).isEqualTo(EnrollmentStatus.CANCELLED)
+        assertThatThrownBy { enrollment.cancel() }
+            .isInstanceOf(IllegalStateException::class.java)
     }
 
     @Test

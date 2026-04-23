@@ -32,7 +32,9 @@ class EnrollmentEntity(
     }
 
     fun cancel() {
-        check(enrollmentStatus != EnrollmentStatus.CANCELLED) { "이미 취소된 신청입니다" }
+        check(enrollmentStatus == EnrollmentStatus.CONFIRMED) {
+            "CONFIRMED 상태에서만 취소할 수 있습니다: $enrollmentStatus"
+        }
         enrollmentStatus = EnrollmentStatus.CANCELLED
     }
 }
