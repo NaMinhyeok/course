@@ -1,6 +1,8 @@
 package io.github.naminhyeok.course.storage.db.core.course
 
 import io.github.naminhyeok.course.storage.db.core.BaseEntity
+import io.github.naminhyeok.course.storage.db.core.course.error.CourseSeatsCapacityExceededException
+import io.github.naminhyeok.course.storage.db.core.course.error.CourseSeatsNotReservedException
 import jakarta.persistence.Entity
 import jakarta.persistence.Index
 import jakarta.persistence.Table
@@ -24,12 +26,16 @@ class CourseSeatsEntity(
         private set
 
     fun reserve() {
-        check(reservedCount < capacity) { "정원을 초과했습니다 (capacity=$capacity)" }
+        if (reservedCount >= capacity) {
+            throw CourseSeatsCapacityExceededException("정원을 초과했습니다 (capacity=$capacity)")
+        }
         reservedCount += 1
     }
 
     fun release() {
-        check(reservedCount > 0) { "예약된 좌석이 없습니다" }
+        if (reservedCount <= 0) {
+            throw CourseSeatsNotReservedException("예약된 좌석이 없습니다")
+        }
         reservedCount -= 1
     }
 }
