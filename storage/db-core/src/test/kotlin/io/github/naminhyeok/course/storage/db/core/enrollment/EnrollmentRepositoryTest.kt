@@ -8,11 +8,13 @@ import org.junit.jupiter.api.Test
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.transaction.annotation.Transactional
+import jakarta.persistence.EntityManager
 import java.time.LocalDateTime
 
 @Transactional
 class EnrollmentRepositoryTest(
     private val enrollmentRepository: EnrollmentRepository,
+    private val entityManager: EntityManager,
 ) : CoreDbContextTest() {
     @Test
     fun `저장된 엔티티는 기본 상태가 PENDING 이다`() {
@@ -20,6 +22,9 @@ class EnrollmentRepositoryTest(
             enrollmentRepository.save(
                 EnrollmentEntity(courseId = 1L, userId = 100L),
             )
+
+        entityManager.flush()
+        entityManager.clear()
 
         val found = enrollmentRepository.findById(saved.id).orElseThrow()
         assertThat(found.enrollmentStatus).isEqualTo(EnrollmentStatus.PENDING)
@@ -101,6 +106,9 @@ class EnrollmentRepositoryTest(
                     confirmedAt = confirmedAt,
                 ),
             )
+
+        entityManager.flush()
+        entityManager.clear()
 
         val found = enrollmentRepository.findById(saved.id).orElseThrow()
 

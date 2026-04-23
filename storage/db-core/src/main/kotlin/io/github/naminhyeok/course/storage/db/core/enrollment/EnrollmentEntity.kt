@@ -30,6 +30,15 @@ class EnrollmentEntity(
     var confirmedAt: LocalDateTime? = confirmedAt
         protected set
 
+    init {
+        check(!(enrollmentStatus == EnrollmentStatus.PENDING && confirmedAt != null)) {
+            "PENDING 상태에서는 confirmedAt 이 없어야 합니다"
+        }
+        check(!(enrollmentStatus == EnrollmentStatus.CONFIRMED && confirmedAt == null)) {
+            "CONFIRMED 상태에서는 confirmedAt 이 필요합니다"
+        }
+    }
+
     fun confirm() {
         check(enrollmentStatus == EnrollmentStatus.PENDING) {
             "PENDING 상태에서만 확정할 수 있습니다: $enrollmentStatus"

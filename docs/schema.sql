@@ -37,6 +37,7 @@ CREATE TABLE enrollment (
     course_id          BIGINT        NOT NULL,
     user_id            BIGINT        NOT NULL,
     enrollment_status  VARCHAR(20)   NOT NULL,                 -- PENDING / CONFIRMED / CANCELLED
+    confirmed_at       DATETIME(6)   NULL,                      -- set when the enrollment is confirmed
     status             VARCHAR(20)   NOT NULL DEFAULT 'ACTIVE',-- BaseEntity: ACTIVE / DELETED
     created_at         DATETIME(6)   NOT NULL,
     updated_at         DATETIME(6)   NOT NULL,
