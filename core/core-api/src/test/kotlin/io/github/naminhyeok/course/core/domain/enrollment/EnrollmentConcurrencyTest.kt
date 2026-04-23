@@ -25,9 +25,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 
-// H2 인메모리 환경은 실제 DB보다 낙관 락 충돌이 훨씬 조밀하게 발생해 기본 N=3으로는
-// 10명 경합 테스트를 결정적으로 통과시키기 어려움. 이 테스트는 재시도 메커니즘 자체를
-// 증빙하는 것이 목적이므로 테스트 한정으로 max-attempts=10을 적용한다. 운영 기본값은 3.
 @TestPropertySource(properties = ["enrollment.retry.max-attempts=10"])
 class EnrollmentConcurrencyTest(
     private val enrollmentService: EnrollmentService,
