@@ -22,15 +22,15 @@ class EnrollmentReader(
         userId: Long,
         status: EnrollmentStatus?,
     ): List<Enrollment> {
-        val enrollmentEntities =
+        val enrollments =
             if (status == null) {
                 enrollmentRepository.findByUserIdOrderByIdDesc(userId)
             } else {
                 enrollmentRepository.findByUserIdAndEnrollmentStatusOrderByIdDesc(userId, status)
             }
-        if (enrollmentEntities.isEmpty()) return emptyList()
+        if (enrollments.isEmpty()) return emptyList()
 
-        val courseIds = enrollmentEntities.map { it.courseId }.distinct()
+        val courseIds = enrollments.map { it.courseId }.distinct()
         val courses = courseRepository.findAllById(courseIds)
         val seatsByCourseId = courseSeatsRepository.findByCourseIdIn(courseIds).associateBy { it.courseId }
         val courseMap =
@@ -40,7 +40,7 @@ class EnrollmentReader(
                     course.id to Course.from(course, seatsByCourseId[course.id]!!)
                 }
 
-        return enrollmentEntities
+        return enrollments
             .filter { courseMap.containsKey(it.courseId) }
             .map { entity ->
                 Enrollment(
@@ -54,12 +54,12 @@ class EnrollmentReader(
     }
 
     fun getConfirmedEnrollmentsByCourse(courseId: Long): List<Enrollment> {
-        val enrollmentEntities =
+        val enrollments =
             enrollmentRepository.findByCourseIdAndEnrollmentStatusOrderByIdDesc(
                 courseId = courseId,
                 enrollmentStatus = EnrollmentStatus.CONFIRMED,
             )
-        if (enrollmentEntities.isEmpty()) return emptyList()
+        if (enrollments.isEmpty()) return emptyList()
 
         val course =
             courseRepository.findByIdOrNull(courseId)
@@ -69,7 +69,7 @@ class EnrollmentReader(
                 ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
         val mappedCourse = Course.from(course, seats)
 
-        return enrollmentEntities.map { entity ->
+        return enrollments.map { entity ->
             Enrollment(
                 id = entity.id,
                 userId = entity.userId,
