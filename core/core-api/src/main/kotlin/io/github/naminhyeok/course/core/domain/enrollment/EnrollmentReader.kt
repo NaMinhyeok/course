@@ -1,6 +1,8 @@
 package io.github.naminhyeok.course.core.domain.enrollment
 
 import io.github.naminhyeok.course.core.domain.course.Course
+import io.github.naminhyeok.course.core.support.error.CoreException
+import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
@@ -48,5 +50,32 @@ class EnrollmentReader(
                     appliedAt = entity.createdAt,
                 )
             }
+    }
+
+    fun getConfirmedEnrollmentsByCourse(courseId: Long): List<Enrollment> {
+        val entities =
+            enrollmentRepository.findByCourseIdAndEnrollmentStatusOrderByIdDesc(
+                courseId = courseId,
+                enrollmentStatus = EnrollmentStatus.CONFIRMED,
+            )
+        if (entities.isEmpty()) return emptyList()
+
+        val course =
+            courseRepository.findById(courseId).orElse(null)
+                ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
+        val seats =
+            courseSeatsRepository.findByCourseId(courseId)
+                ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
+        val mappedCourse = Course.from(course, seats)
+
+        return entities.map { entity ->
+            Enrollment(
+                id = entity.id,
+                userId = entity.userId,
+                course = mappedCourse,
+                status = entity.enrollmentStatus,
+                appliedAt = entity.createdAt,
+            )
+        }
     }
 }

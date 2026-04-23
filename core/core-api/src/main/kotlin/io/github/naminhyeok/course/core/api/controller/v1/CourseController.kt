@@ -5,8 +5,10 @@ import io.github.naminhyeok.course.core.api.controller.v1.request.CreateCourseRe
 import io.github.naminhyeok.course.core.api.controller.v1.response.CourseDetailResponse
 import io.github.naminhyeok.course.core.api.controller.v1.response.CourseSummaryResponse
 import io.github.naminhyeok.course.core.api.controller.v1.response.CreateCourseResponse
+import io.github.naminhyeok.course.core.api.controller.v1.response.EnrollmentResponse
 import io.github.naminhyeok.course.core.domain.User
 import io.github.naminhyeok.course.core.domain.course.CourseService
+import io.github.naminhyeok.course.core.domain.enrollment.EnrollmentService
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.core.support.response.ApiResponse
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 class CourseController(
     private val courseService: CourseService,
+    private val enrollmentService: EnrollmentService,
 ) {
     @PostMapping("/api/v1/courses")
     fun createCourse(
@@ -60,5 +63,14 @@ class CourseController(
     ): ApiResponse<CourseDetailResponse> {
         val course = courseService.findCourse(courseId)
         return ApiResponse.success(CourseDetailResponse.from(course))
+    }
+
+    @GetMapping("/api/v1/courses/{courseId}/enrollments")
+    fun getConfirmedCourseEnrollments(
+        user: User,
+        @PathVariable courseId: Long,
+    ): ApiResponse<List<EnrollmentResponse>> {
+        val enrollments = enrollmentService.getConfirmedCourseEnrollments(user, courseId)
+        return ApiResponse.success(enrollments.map { EnrollmentResponse.from(it) })
     }
 }

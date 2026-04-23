@@ -247,4 +247,70 @@ class EnrollmentServiceTest(
 
         assertThat(result).isEmpty()
     }
+
+    @Test
+    fun `getConfirmedCourseEnrollments 는 강의 생성자에게 해당 강의의 CONFIRMED 신청만 최신순으로 반환한다`() {
+        val course = saveCourseWithSeats()
+        val pendingUser = User(id = 201L)
+        val firstConfirmedUser = User(id = 202L)
+        val secondConfirmedUser = User(id = 203L)
+
+        enrollmentService.enroll(pendingUser, course.id)
+
+        val firstConfirmedId = enrollmentService.enroll(firstConfirmedUser, course.id)
+        enrollmentService.confirm(firstConfirmedUser, firstConfirmedId)
+
+        val secondConfirmedId = enrollmentService.enroll(secondConfirmedUser, course.id)
+        enrollmentService.confirm(secondConfirmedUser, secondConfirmedId)
+
+        val result = enrollmentService.getConfirmedCourseEnrollments(creator, course.id)
+
+        assertThat(result).hasSize(2)
+        assertThat(result[0].id).isEqualTo(secondConfirmedId)
+        assertThat(result[1].id).isEqualTo(firstConfirmedId)
+        assertThat(result[0].status).isEqualTo(EnrollmentStatus.CONFIRMED)
+        assertThat(result[1].status).isEqualTo(EnrollmentStatus.CONFIRMED)
+    }
+
+    @Test
+    fun `getConfirmedCourseEnrollments 는 생성자가 아니면 ACCESS_DENIED 예외를 던진다`() {
+        val course = saveCourseWithSeats()
+        val other = User(id = 999L)
+
+        assertThatThrownBy { enrollmentService.getConfirmedCourseEnrollments(other, course.id) }
+            .isInstanceOf(CoreException::class.java)
+            .extracting("errorType")
+            .isEqualTo(ErrorType.ACCESS_DENIED)
+    }
+
+    @Test
+    fun `getConfirmedCourseEnrollments 는 존재하지 않는 강의면 NOT_FOUND_DATA 예외를 던진다`() {
+        assertThatThrownBy { enrollmentService.getConfirmedCourseEnrollments(creator, 99999L) }
+            .isInstanceOf(CoreException::class.java)
+            .extracting("errorType")
+            .isEqualTo(ErrorType.NOT_FOUND_DATA)
+    }
+
+    @Test
+    fun `getConfirmedCourseEnrollments 는 CONFIRMED 신청이 없으면 빈 리스트를 반환한다`() {
+        val course = saveCourseWithSeats()
+
+        val result = enrollmentService.getConfirmedCourseEnrollments(creator, course.id)
+
+        assertThat(result).isEmpty()
+    }
+
+    @Test
+    fun `getConfirmedCourseEnrollments 는 확인된 신청이 있는 강의의 좌석 정보가 사라지면 NOT_FOUND_DATA 예외를 던진다`() {
+        val course = saveCourseWithSeats()
+        val enrollmentId = enrollmentService.enroll(user, course.id)
+        enrollmentService.confirm(user, enrollmentId)
+        val seats = courseSeatsRepository.findByCourseId(course.id)!!
+        courseSeatsRepository.delete(seats)
+
+        assertThatThrownBy { enrollmentService.getConfirmedCourseEnrollments(creator, course.id) }
+            .isInstanceOf(CoreException::class.java)
+            .extracting("errorType")
+            .isEqualTo(ErrorType.NOT_FOUND_DATA)
+    }
 }

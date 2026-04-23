@@ -82,4 +82,19 @@ class EnrollmentService(
         user: User,
         status: EnrollmentStatus?,
     ): List<Enrollment> = enrollmentReader.getEnrollments(user.id, status)
+
+    fun getConfirmedCourseEnrollments(
+        user: User,
+        courseId: Long,
+    ): List<Enrollment> {
+        val course =
+            courseRepository
+                .findByIdOrNull(courseId)
+                ?.takeIf { it.isActive() }
+                ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
+        if (course.creatorId != user.id) {
+            throw CoreException(ErrorType.ACCESS_DENIED)
+        }
+        return enrollmentReader.getConfirmedEnrollmentsByCourse(courseId)
+    }
 }
