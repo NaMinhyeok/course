@@ -7,6 +7,7 @@ import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Index
 import jakarta.persistence.Table
+import java.time.LocalDateTime
 
 @Entity
 @Table(
@@ -20,16 +21,21 @@ class EnrollmentEntity(
     val courseId: Long,
     val userId: Long,
     enrollmentStatus: EnrollmentStatus = EnrollmentStatus.PENDING,
+    confirmedAt: LocalDateTime? = null,
 ) : BaseEntity() {
     @Enumerated(EnumType.STRING)
     final var enrollmentStatus: EnrollmentStatus = enrollmentStatus
         private set
+
+    var confirmedAt: LocalDateTime? = confirmedAt
+        protected set
 
     fun confirm() {
         check(enrollmentStatus == EnrollmentStatus.PENDING) {
             "PENDING 상태에서만 확정할 수 있습니다: $enrollmentStatus"
         }
         enrollmentStatus = EnrollmentStatus.CONFIRMED
+        confirmedAt = LocalDateTime.now()
     }
 
     fun cancel() {

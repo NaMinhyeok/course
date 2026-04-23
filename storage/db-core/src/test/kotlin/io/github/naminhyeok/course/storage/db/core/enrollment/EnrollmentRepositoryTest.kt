@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 @Transactional
 class EnrollmentRepositoryTest(
@@ -86,5 +87,24 @@ class EnrollmentRepositoryTest(
         assertThat(result).extracting("id").containsExactly(secondConfirmed.id, firstConfirmed.id)
         assertThat(result).allMatch { it.courseId == 1L && it.enrollmentStatus == EnrollmentStatus.CONFIRMED }
         assertThat(pending.id).isNotEqualTo(secondConfirmed.id)
+    }
+
+    @Test
+    fun `CONFIRMED 상태의 confirmedAt 은 저장 후 조회된다`() {
+        val confirmedAt = LocalDateTime.of(2026, 4, 23, 10, 0)
+        val saved =
+            enrollmentRepository.save(
+                EnrollmentEntity(
+                    courseId = 1L,
+                    userId = 100L,
+                    enrollmentStatus = EnrollmentStatus.CONFIRMED,
+                    confirmedAt = confirmedAt,
+                ),
+            )
+
+        val found = enrollmentRepository.findById(saved.id).orElseThrow()
+
+        assertThat(found.enrollmentStatus).isEqualTo(EnrollmentStatus.CONFIRMED)
+        assertThat(found.confirmedAt).isEqualTo(confirmedAt)
     }
 }

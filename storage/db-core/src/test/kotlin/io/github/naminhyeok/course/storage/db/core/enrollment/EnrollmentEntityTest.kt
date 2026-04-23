@@ -10,12 +10,13 @@ class EnrollmentEntityTest {
         EnrollmentEntity(courseId = 1L, userId = 100L, enrollmentStatus = status)
 
     @Test
-    fun `PENDING 상태에서 confirm 을 호출하면 CONFIRMED 로 전이된다`() {
+    fun `PENDING 상태에서 confirm 을 호출하면 confirmedAt 이 기록된다`() {
         val enrollment = enrollmentOf(EnrollmentStatus.PENDING)
 
         enrollment.confirm()
 
         assertThat(enrollment.enrollmentStatus).isEqualTo(EnrollmentStatus.CONFIRMED)
+        assertThat(enrollment.confirmedAt).isNotNull()
     }
 
     @Test
