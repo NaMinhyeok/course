@@ -23,7 +23,7 @@ class CourseEntityTest {
     }
 
     @Test
-    fun `DRAFT 상태에서 open 을 호출하면 OPEN 으로 전이된다`() {
+    fun `초안 강의는 공개할 수 있다`() {
         val course = courseOf(CourseStatus.DRAFT)
 
         course.open()
@@ -32,7 +32,7 @@ class CourseEntityTest {
     }
 
     @Test
-    fun `OPEN 상태에서 open 을 재호출해도 OPEN 을 유지한다 - 멱등`() {
+    fun `이미 공개된 강의는 다시 공개해도 상태를 유지한다`() {
         val course = courseOf(CourseStatus.OPEN)
 
         course.open()
@@ -41,7 +41,7 @@ class CourseEntityTest {
     }
 
     @Test
-    fun `CLOSED 상태에서 open 을 호출하면 IllegalStateException 예외가 발생한다`() {
+    fun `닫힌 강의는 다시 공개할 수 없다`() {
         val course = courseOf(CourseStatus.CLOSED)
 
         assertThatThrownBy { course.open() }
@@ -49,7 +49,7 @@ class CourseEntityTest {
     }
 
     @Test
-    fun `OPEN 상태에서 close 를 호출하면 CLOSED 로 전이된다`() {
+    fun `공개된 강의는 닫을 수 있다`() {
         val course = courseOf(CourseStatus.OPEN)
 
         course.close()
@@ -58,7 +58,7 @@ class CourseEntityTest {
     }
 
     @Test
-    fun `CLOSED 상태에서 close 를 재호출해도 CLOSED 를 유지한다 - 멱등`() {
+    fun `이미 닫힌 강의는 다시 닫아도 상태를 유지한다`() {
         val course = courseOf(CourseStatus.CLOSED)
 
         course.close()
@@ -67,7 +67,7 @@ class CourseEntityTest {
     }
 
     @Test
-    fun `DRAFT 상태에서 close 를 호출하면 IllegalStateException 예외가 발생한다`() {
+    fun `초안 강의는 바로 닫을 수 없다`() {
         val course = courseOf(CourseStatus.DRAFT)
 
         assertThatThrownBy { course.close() }

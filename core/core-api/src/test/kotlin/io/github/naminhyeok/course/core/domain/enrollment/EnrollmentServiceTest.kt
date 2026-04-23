@@ -16,9 +16,16 @@ import io.github.naminhyeok.course.storage.db.core.enrollment.EnrollmentReposito
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.context.annotation.Bean
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import java.time.Clock
 import java.time.LocalDateTime
+import java.time.ZoneId
+
+private val cancelPolicyZone = ZoneId.of("Asia/Seoul")
+private val cancelPolicyNow = LocalDateTime.of(2026, 4, 30, 10, 0)
 
 @Transactional
 class EnrollmentServiceTest(
@@ -30,6 +37,13 @@ class EnrollmentServiceTest(
     private val user = User(id = 200L)
     private val creator = User(id = 100L)
     private val baseStart = LocalDateTime.of(2026, 5, 1, 0, 0)
+
+    private fun assertCoreError(expected: ErrorType, action: () -> Unit) {
+        assertThatThrownBy(action)
+            .isInstanceOf(CoreException::class.java)
+            .extracting("errorType")
+            .isEqualTo(expected)
+    }
 
     private fun saveCourseWithSeats(
         status: CourseStatus = CourseStatus.OPEN,
@@ -55,8 +69,16 @@ class EnrollmentServiceTest(
         return course
     }
 
+    @TestConfiguration
+    class FixedClockConfig {
+        @Bean
+        fun clock(): Clock {
+            return Clock.fixed(cancelPolicyNow.atZone(cancelPolicyZone).toInstant(), cancelPolicyZone)
+        }
+    }
+
     @Test
-    fun `enroll 은 OPEN 강의에 PENDING Enrollment 를 생성하고 reservedCount 를 1 증가시킨다`() {
+    fun `수강 신청은 공개된 강의에 대기 상태 신청을 만들고 좌석을 차감한다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN)
 
         val enrollmentId = enrollmentService.enroll(user, course.id)
@@ -70,45 +92,41 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `enroll 은 DRAFT 강의면 COURSE_NOT_OPEN 예외를 던진다`() {
+    fun `수강 신청은 DRAFT 상태의 강의에 대해 COURSE_NOT_OPEN 예외를 던진다`() {
         val course = saveCourseWithSeats(status = CourseStatus.DRAFT)
 
-        assertThatThrownBy { enrollmentService.enroll(user, course.id) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.COURSE_NOT_OPEN)
+        assertCoreError(ErrorType.COURSE_NOT_OPEN) {
+            enrollmentService.enroll(user, course.id)
+        }
     }
 
     @Test
-    fun `enroll 은 CLOSED 강의면 COURSE_NOT_OPEN 예외를 던진다`() {
+    fun `수강 신청은 CLOSED 상태의 강의에 대해 COURSE_NOT_OPEN 예외를 던진다`() {
         val course = saveCourseWithSeats(status = CourseStatus.CLOSED)
 
-        assertThatThrownBy { enrollmentService.enroll(user, course.id) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.COURSE_NOT_OPEN)
+        assertCoreError(ErrorType.COURSE_NOT_OPEN) {
+            enrollmentService.enroll(user, course.id)
+        }
     }
 
     @Test
-    fun `enroll 은 정원이 가득 찬 강의에 대해 CAPACITY_EXCEEDED 예외를 던진다`() {
+    fun `수강 신청은 정원이 가득 찬 강의에 대해 CAPACITY_EXCEEDED 예외를 던진다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN, capacity = 1, reservedCount = 1)
 
-        assertThatThrownBy { enrollmentService.enroll(user, course.id) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.CAPACITY_EXCEEDED)
+        assertCoreError(ErrorType.CAPACITY_EXCEEDED) {
+            enrollmentService.enroll(user, course.id)
+        }
     }
 
     @Test
-    fun `enroll 은 존재하지 않는 강의면 NOT_FOUND_DATA 예외를 던진다`() {
-        assertThatThrownBy { enrollmentService.enroll(user, 99999L) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.NOT_FOUND_DATA)
+    fun `수강 신청은 존재하지 않는 강의에 대해 NOT_FOUND_DATA 예외를 던진다`() {
+        assertCoreError(ErrorType.NOT_FOUND_DATA) {
+            enrollmentService.enroll(user, 99999L)
+        }
     }
 
     @Test
-    fun `confirm 은 PENDING Enrollment 를 CONFIRMED 로 전이한다`() {
+    fun `수강 확정은 대기 중인 신청을 확정 상태로 전이한다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN)
         val enrollmentId = enrollmentService.enroll(user, course.id)
 
@@ -119,27 +137,25 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `confirm 은 다른 사용자의 Enrollment 면 ACCESS_DENIED 예외를 던진다`() {
+    fun `수강 확정은 본인 신청만 확정할 수 있다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN)
         val enrollmentId = enrollmentService.enroll(user, course.id)
         val other = User(id = 999L)
 
-        assertThatThrownBy { enrollmentService.confirm(other, enrollmentId) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.ACCESS_DENIED)
+        assertCoreError(ErrorType.ACCESS_DENIED) {
+            enrollmentService.confirm(other, enrollmentId)
+        }
     }
 
     @Test
-    fun `confirm 은 존재하지 않는 Enrollment 면 NOT_FOUND_DATA 예외를 던진다`() {
-        assertThatThrownBy { enrollmentService.confirm(user, 99999L) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.NOT_FOUND_DATA)
+    fun `수강 확정은 존재하지 않는 신청에 대해 NOT_FOUND_DATA 예외를 던진다`() {
+        assertCoreError(ErrorType.NOT_FOUND_DATA) {
+            enrollmentService.confirm(user, 99999L)
+        }
     }
 
     @Test
-    fun `confirm 은 이미 CONFIRMED 인 Enrollment 에 대해 IllegalStateException 을 던진다`() {
+    fun `수강 확정은 이미 확정된 신청에 대해 실패한다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN)
         val enrollmentId = enrollmentService.enroll(user, course.id)
         enrollmentService.confirm(user, enrollmentId)
@@ -149,7 +165,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `cancel 은 CONFIRMED Enrollment 를 CANCELLED 로 전이하고 reservedCount 를 1 감소시킨다`() {
+    fun `수강 취소는 확정된 신청을 취소하고 좌석을 복구한다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN)
         val enrollmentId = enrollmentService.enroll(user, course.id)
         enrollmentService.confirm(user, enrollmentId)
@@ -163,7 +179,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `cancel 은 confirm 후에도 confirmedAt 을 유지한다`() {
+    fun `취소된 신청도 최초 확정 시각을 보존한다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN)
         val enrollmentId = enrollmentService.enroll(user, course.id)
         enrollmentService.confirm(user, enrollmentId)
@@ -178,7 +194,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `cancel 은 confirmedAt 기준 7일 이내면 취소할 수 있다`() {
+    fun `수강 취소는 확정 후 7일까지 가능하다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN, reservedCount = 1)
         val enrollment =
             enrollmentRepository.save(
@@ -186,7 +202,7 @@ class EnrollmentServiceTest(
                     courseId = course.id,
                     userId = user.id,
                     enrollmentStatus = EnrollmentStatus.CONFIRMED,
-                    confirmedAt = LocalDateTime.now().minusDays(6),
+                    confirmedAt = cancelPolicyNow.minusDays(7),
                 ),
             )
 
@@ -198,7 +214,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `cancel 은 confirmedAt 기준 7일을 초과하면 ENROLLMENT_CANCEL_EXPIRED 예외를 던지고 좌석을 유지한다`() {
+    fun `수강 취소는 확정 후 8일째부터 실패하고 좌석을 유지한다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN, reservedCount = 1)
         val enrollment =
             enrollmentRepository.save(
@@ -206,14 +222,13 @@ class EnrollmentServiceTest(
                     courseId = course.id,
                     userId = user.id,
                     enrollmentStatus = EnrollmentStatus.CONFIRMED,
-                    confirmedAt = LocalDateTime.now().minusDays(8),
+                    confirmedAt = cancelPolicyNow.minusDays(8),
                 ),
             )
 
-        assertThatThrownBy { enrollmentService.cancel(user, enrollment.id) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.ENROLLMENT_CANCEL_EXPIRED)
+        assertCoreError(ErrorType.ENROLLMENT_CANCEL_EXPIRED) {
+            enrollmentService.cancel(user, enrollment.id)
+        }
 
         val found = enrollmentRepository.findById(enrollment.id).orElseThrow()
         assertThat(found.enrollmentStatus).isEqualTo(EnrollmentStatus.CONFIRMED)
@@ -221,7 +236,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `cancel 은 PENDING 상태의 Enrollment 를 취소할 수 없고 reservedCount 를 유지한다`() {
+    fun `수강 취소는 대기 상태 신청에 대해 실패하고 좌석을 유지한다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN)
         val enrollmentId = enrollmentService.enroll(user, course.id)
 
@@ -235,19 +250,18 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `cancel 은 다른 사용자의 Enrollment 면 ACCESS_DENIED 예외를 던진다`() {
+    fun `수강 취소는 본인 신청만 취소할 수 있다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN)
         val enrollmentId = enrollmentService.enroll(user, course.id)
         val other = User(id = 999L)
 
-        assertThatThrownBy { enrollmentService.cancel(other, enrollmentId) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.ACCESS_DENIED)
+        assertCoreError(ErrorType.ACCESS_DENIED) {
+            enrollmentService.cancel(other, enrollmentId)
+        }
     }
 
     @Test
-    fun `cancel 은 이미 CANCELLED 인 Enrollment 에 대해 IllegalStateException 을 던진다`() {
+    fun `수강 취소는 이미 취소된 신청에 대해 실패한다`() {
         val course = saveCourseWithSeats(status = CourseStatus.OPEN)
         val enrollmentId = enrollmentService.enroll(user, course.id)
         enrollmentService.confirm(user, enrollmentId)
@@ -258,7 +272,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `getEnrollments 는 현재 사용자의 모든 신청을 최신순 Enrollment 로 반환한다`() {
+    fun `내 신청 목록 조회는 현재 사용자의 신청을 최신순으로 반환한다`() {
         val course1 = saveCourseWithSeats()
         val course2 = saveCourseWithSeats()
         val firstId = enrollmentService.enroll(user, course1.id)
@@ -276,7 +290,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `getEnrollments 는 status 필터 적용 시 해당 상태만 반환한다`() {
+    fun `내 신청 목록 조회는 상태 조건이 있으면 해당 상태만 반환한다`() {
         val course1 = saveCourseWithSeats()
         val course2 = saveCourseWithSeats()
         val pendingId = enrollmentService.enroll(user, course1.id)
@@ -291,7 +305,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `getEnrollments 는 다른 사용자의 신청은 반환하지 않는다`() {
+    fun `내 신청 목록 조회는 다른 사용자의 신청을 제외한다`() {
         val course = saveCourseWithSeats()
         val myId = enrollmentService.enroll(user, course.id)
         val other = User(id = 999L)
@@ -304,7 +318,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `getEnrollments 는 신청이 없으면 빈 페이지를 반환한다`() {
+    fun `내 신청 목록 조회는 신청이 없으면 빈 페이지를 반환한다`() {
         val result = enrollmentService.getEnrollments(user, null, OffsetLimit(0, 10))
 
         assertThat(result.content).isEmpty()
@@ -312,7 +326,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `getEnrollments 는 offset limit 기준으로 페이지를 반환하고 hasNext 를 계산한다`() {
+    fun `내 신청 목록 조회는 페이지 경계와 hasNext 를 함께 계산한다`() {
         val course1 = saveCourseWithSeats()
         val course2 = saveCourseWithSeats()
         val course3 = saveCourseWithSeats()
@@ -331,7 +345,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `getConfirmedCourseEnrollments 는 강의 생성자에게 해당 강의의 CONFIRMED 신청만 최신순으로 반환한다`() {
+    fun `확정 수강생 조회는 강의 생성자 요청에 대해 확정 신청을 최신순으로 반환한다`() {
         val course = saveCourseWithSeats()
         val pendingUser = User(id = 201L)
         val firstConfirmedUser = User(id = 202L)
@@ -355,7 +369,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `getConfirmedCourseEnrollments 는 생성자가 아니면 ACCESS_DENIED 예외를 던진다`() {
+    fun `확정 수강생 조회는 강의 생성자가 아니면 ACCESS_DENIED로 실패한다`() {
         val course = saveCourseWithSeats()
         val other = User(id = 999L)
 
@@ -366,7 +380,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `getConfirmedCourseEnrollments 는 존재하지 않는 강의면 NOT_FOUND_DATA 예외를 던진다`() {
+    fun `확정 수강생 조회는 존재하지 않는 강의에 대해 NOT_FOUND_DATA로 실패한다`() {
         assertThatThrownBy { enrollmentService.getConfirmedCourseEnrollments(creator, 99999L) }
             .isInstanceOf(CoreException::class.java)
             .extracting("errorType")
@@ -374,7 +388,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `getConfirmedCourseEnrollments 는 CONFIRMED 신청이 없으면 빈 리스트를 반환한다`() {
+    fun `확정 수강생 조회는 확정 신청이 없으면 빈 목록을 반환한다`() {
         val course = saveCourseWithSeats()
 
         val result = enrollmentService.getConfirmedCourseEnrollments(creator, course.id)
@@ -383,7 +397,7 @@ class EnrollmentServiceTest(
     }
 
     @Test
-    fun `getConfirmedCourseEnrollments 는 확인된 신청이 있는 강의의 좌석 정보가 사라지면 NOT_FOUND_DATA 예외를 던진다`() {
+    fun `확정 수강생 조회는 확정 신청이 있는 강의에서 좌석 정보가 없으면 NOT_FOUND_DATA로 실패한다`() {
         val course = saveCourseWithSeats()
         val enrollmentId = enrollmentService.enroll(user, course.id)
         enrollmentService.confirm(user, enrollmentId)

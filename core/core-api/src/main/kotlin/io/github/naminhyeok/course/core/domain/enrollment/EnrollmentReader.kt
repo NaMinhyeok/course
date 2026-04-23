@@ -1,11 +1,10 @@
 package io.github.naminhyeok.course.core.domain.enrollment
 
 import io.github.naminhyeok.course.core.domain.course.Course
-import io.github.naminhyeok.course.core.support.error.CoreException
-import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.core.support.OffsetLimit
 import io.github.naminhyeok.course.core.support.Page
-import io.github.naminhyeok.course.enums.EntityStatus
+import io.github.naminhyeok.course.core.support.error.CoreException
+import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
@@ -26,21 +25,11 @@ class EnrollmentReader(
         status: EnrollmentStatus?,
         offsetLimit: OffsetLimit,
     ): Page<Enrollment> {
+        val pageable = offsetLimit.toPageable()
         val enrollments =
             when (status) {
-                null ->
-                    enrollmentRepository.findByUserIdAndStatusOrderByIdDesc(
-                        userId = userId,
-                        status = EntityStatus.ACTIVE,
-                        pageable = offsetLimit.toPageable(),
-                    )
-                else ->
-                    enrollmentRepository.findByUserIdAndStatusAndEnrollmentStatusOrderByIdDesc(
-                        userId = userId,
-                        status = EntityStatus.ACTIVE,
-                        enrollmentStatus = status,
-                        pageable = offsetLimit.toPageable(),
-                    )
+                null -> enrollmentRepository.findUserEnrollments(userId, pageable)
+                else -> enrollmentRepository.findUserEnrollmentsByStatus(userId, status, pageable)
             }
         if (enrollments.isEmpty) return Page(emptyList(), hasNext = false)
 
@@ -72,11 +61,7 @@ class EnrollmentReader(
     }
 
     fun getConfirmedEnrollmentsByCourse(courseId: Long): List<Enrollment> {
-        val enrollments =
-            enrollmentRepository.findByCourseIdAndEnrollmentStatusOrderByIdDesc(
-                courseId = courseId,
-                enrollmentStatus = EnrollmentStatus.CONFIRMED,
-            )
+        val enrollments = enrollmentRepository.findConfirmedEnrollmentsByCourse(courseId)
         if (enrollments.isEmpty()) return emptyList()
 
         val course =
