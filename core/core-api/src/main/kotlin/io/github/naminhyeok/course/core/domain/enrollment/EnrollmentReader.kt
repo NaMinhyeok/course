@@ -7,6 +7,7 @@ import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
 import io.github.naminhyeok.course.storage.db.core.enrollment.EnrollmentRepository
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -21,15 +22,15 @@ class EnrollmentReader(
         userId: Long,
         status: EnrollmentStatus?,
     ): List<Enrollment> {
-        val entities =
+        val enrollmentEntities =
             if (status == null) {
                 enrollmentRepository.findByUserIdOrderByIdDesc(userId)
             } else {
                 enrollmentRepository.findByUserIdAndEnrollmentStatusOrderByIdDesc(userId, status)
             }
-        if (entities.isEmpty()) return emptyList()
+        if (enrollmentEntities.isEmpty()) return emptyList()
 
-        val courseIds = entities.map { it.courseId }.distinct()
+        val courseIds = enrollmentEntities.map { it.courseId }.distinct()
         val courses = courseRepository.findAllById(courseIds)
         val seatsByCourseId = courseSeatsRepository.findByCourseIdIn(courseIds).associateBy { it.courseId }
         val courseMap =
@@ -39,7 +40,7 @@ class EnrollmentReader(
                     course.id to Course.from(course, seatsByCourseId[course.id]!!)
                 }
 
-        return entities
+        return enrollmentEntities
             .filter { courseMap.containsKey(it.courseId) }
             .map { entity ->
                 Enrollment(
@@ -53,22 +54,22 @@ class EnrollmentReader(
     }
 
     fun getConfirmedEnrollmentsByCourse(courseId: Long): List<Enrollment> {
-        val entities =
+        val enrollmentEntities =
             enrollmentRepository.findByCourseIdAndEnrollmentStatusOrderByIdDesc(
                 courseId = courseId,
                 enrollmentStatus = EnrollmentStatus.CONFIRMED,
             )
-        if (entities.isEmpty()) return emptyList()
+        if (enrollmentEntities.isEmpty()) return emptyList()
 
         val course =
-            courseRepository.findById(courseId).orElse(null)
+            courseRepository.findByIdOrNull(courseId)
                 ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
         val seats =
             courseSeatsRepository.findByCourseId(courseId)
                 ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
         val mappedCourse = Course.from(course, seats)
 
-        return entities.map { entity ->
+        return enrollmentEntities.map { entity ->
             Enrollment(
                 id = entity.id,
                 userId = entity.userId,
