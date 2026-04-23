@@ -11,6 +11,7 @@ import io.github.naminhyeok.course.storage.db.core.course.CourseEntity
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsEntity
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
+import io.github.naminhyeok.course.storage.db.core.enrollment.EnrollmentEntity
 import io.github.naminhyeok.course.storage.db.core.enrollment.EnrollmentRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -159,6 +160,49 @@ class EnrollmentServiceTest(
         assertThat(enrollment.enrollmentStatus).isEqualTo(EnrollmentStatus.CANCELLED)
         val seats = courseSeatsRepository.findByCourseId(course.id)
         assertThat(seats?.reservedCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `cancel 은 confirmedAt 기준 7일 이내면 취소할 수 있다`() {
+        val course = saveCourseWithSeats(status = CourseStatus.OPEN, reservedCount = 1)
+        val enrollment =
+            enrollmentRepository.save(
+                EnrollmentEntity(
+                    courseId = course.id,
+                    userId = user.id,
+                    enrollmentStatus = EnrollmentStatus.CONFIRMED,
+                    confirmedAt = LocalDateTime.now().minusDays(6),
+                ),
+            )
+
+        enrollmentService.cancel(user, enrollment.id)
+
+        val found = enrollmentRepository.findById(enrollment.id).orElseThrow()
+        assertThat(found.enrollmentStatus).isEqualTo(EnrollmentStatus.CANCELLED)
+        assertThat(courseSeatsRepository.findByCourseId(course.id)?.reservedCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `cancel 은 confirmedAt 기준 7일을 초과하면 ENROLLMENT_CANCEL_EXPIRED 예외를 던지고 좌석을 유지한다`() {
+        val course = saveCourseWithSeats(status = CourseStatus.OPEN, reservedCount = 1)
+        val enrollment =
+            enrollmentRepository.save(
+                EnrollmentEntity(
+                    courseId = course.id,
+                    userId = user.id,
+                    enrollmentStatus = EnrollmentStatus.CONFIRMED,
+                    confirmedAt = LocalDateTime.now().minusDays(8),
+                ),
+            )
+
+        assertThatThrownBy { enrollmentService.cancel(user, enrollment.id) }
+            .isInstanceOf(CoreException::class.java)
+            .extracting("errorType")
+            .isEqualTo(ErrorType.ENROLLMENT_CANCEL_EXPIRED)
+
+        val found = enrollmentRepository.findById(enrollment.id).orElseThrow()
+        assertThat(found.enrollmentStatus).isEqualTo(EnrollmentStatus.CONFIRMED)
+        assertThat(courseSeatsRepository.findByCourseId(course.id)?.reservedCount).isEqualTo(1)
     }
 
     @Test

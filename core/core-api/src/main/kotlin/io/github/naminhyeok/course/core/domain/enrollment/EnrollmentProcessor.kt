@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional
 class EnrollmentProcessor(
     private val courseSeatsRepository: CourseSeatsRepository,
     private val enrollmentRepository: EnrollmentRepository,
+    private val enrollmentCancelPolicyValidator: EnrollmentCancelPolicyValidator,
 ) {
     @Transactional
     fun enroll(
@@ -47,9 +48,7 @@ class EnrollmentProcessor(
                 .findByIdOrNull(enrollmentId)
                 ?.takeIf { it.isActive() }
                 ?: throw CoreException(ErrorType.NOT_FOUND_DATA)
-        if (enrollment.userId != user.id) {
-            throw CoreException(ErrorType.ACCESS_DENIED)
-        }
+        enrollmentCancelPolicyValidator.validate(user, enrollment)
         enrollment.cancel()
         val seats =
             courseSeatsRepository.findByCourseId(enrollment.courseId)
