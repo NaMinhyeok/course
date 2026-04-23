@@ -6,9 +6,11 @@ import io.github.naminhyeok.course.core.api.controller.v1.response.EnrollRespons
 import io.github.naminhyeok.course.core.api.controller.v1.response.EnrollmentResponse
 import io.github.naminhyeok.course.core.domain.User
 import io.github.naminhyeok.course.core.domain.enrollment.EnrollmentService
+import io.github.naminhyeok.course.core.support.OffsetLimit
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.core.support.response.ApiResponse
+import io.github.naminhyeok.course.core.support.response.PageResponse
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -49,8 +51,10 @@ class EnrollmentController(
     fun getEnrollments(
         user: User,
         @RequestParam(required = false) status: EnrollmentStatus?,
-    ): ApiResponse<List<EnrollmentResponse>> {
-        val enrollments = enrollmentService.getEnrollments(user, status)
-        return ApiResponse.success(enrollments.map { EnrollmentResponse.from(it) })
+        @RequestParam offset: Int,
+        @RequestParam limit: Int,
+    ): ApiResponse<PageResponse<EnrollmentResponse>> {
+        val enrollments = enrollmentService.getEnrollments(user, status, OffsetLimit(offset, limit))
+        return ApiResponse.success(PageResponse(enrollments.content.map { EnrollmentResponse.from(it) }, enrollments.hasNext))
     }
 }

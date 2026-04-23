@@ -1,9 +1,12 @@
 package io.github.naminhyeok.course.core.domain.course
 
 import io.github.naminhyeok.course.core.domain.User
+import io.github.naminhyeok.course.core.support.OffsetLimit
+import io.github.naminhyeok.course.core.support.Page
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
+import io.github.naminhyeok.course.enums.EntityStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseEntity
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsEntity
@@ -59,25 +62,38 @@ class CourseService(
         requireOwnedCourse(user, courseId).close()
     }
 
-    fun findCourses(status: CourseStatus?): List<Course> {
-        val candidateCourses =
-            if (status != null) {
-                courseRepository.findByCourseStatus(status)
-            } else {
-                courseRepository.findAll()
-            }
+    fun findCourses(
+        status: CourseStatus?,
+        offsetLimit: OffsetLimit,
+    ): Page<Course> {
         val visibleCourses =
-            candidateCourses
-                .filter { it.isActive() }
-                .filter { it.courseStatus != CourseStatus.DRAFT }
-        if (visibleCourses.isEmpty()) return emptyList()
+            when (status) {
+                null ->
+                    courseRepository.findByStatusAndCourseStatusNotOrderByIdDesc(
+                        status = EntityStatus.ACTIVE,
+                        excludedStatus = CourseStatus.DRAFT,
+                        pageable = offsetLimit.toPageable(),
+                    )
+                CourseStatus.DRAFT -> return Page(emptyList(), hasNext = false)
+                else ->
+                    courseRepository.findByStatusAndCourseStatusOrderByIdDesc(
+                        status = EntityStatus.ACTIVE,
+                        courseStatus = status,
+                        pageable = offsetLimit.toPageable(),
+                    )
+            }
+        if (visibleCourses.isEmpty) return Page(emptyList(), hasNext = false)
         val seatsByCourseId =
             courseSeatsRepository
-                .findByCourseIdIn(visibleCourses.map { it.id })
+                .findByCourseIdIn(visibleCourses.content.map { it.id })
                 .associateBy { it.courseId }
-        return visibleCourses.map { course ->
-            Course.from(course, seatsByCourseId.getValue(course.id))
-        }
+        return Page(
+            content =
+                visibleCourses.content.map { course ->
+                    Course.from(course, seatsByCourseId.getValue(course.id))
+                },
+            hasNext = visibleCourses.hasNext(),
+        )
     }
 
     fun findCourse(courseId: Long): Course {

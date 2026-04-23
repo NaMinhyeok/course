@@ -9,9 +9,11 @@ import io.github.naminhyeok.course.core.api.controller.v1.response.EnrollmentRes
 import io.github.naminhyeok.course.core.domain.User
 import io.github.naminhyeok.course.core.domain.course.CourseService
 import io.github.naminhyeok.course.core.domain.enrollment.EnrollmentService
+import io.github.naminhyeok.course.core.support.OffsetLimit
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.core.support.response.ApiResponse
+import io.github.naminhyeok.course.core.support.response.PageResponse
 import io.github.naminhyeok.course.enums.CourseStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -52,9 +54,11 @@ class CourseController(
     @GetMapping("/api/v1/courses")
     fun findCourses(
         @RequestParam(required = false) status: CourseStatus?,
-    ): ApiResponse<List<CourseSummaryResponse>> {
-        val courses = courseService.findCourses(status)
-        return ApiResponse.success(courses.map { CourseSummaryResponse.from(it) })
+        @RequestParam offset: Int,
+        @RequestParam limit: Int,
+    ): ApiResponse<PageResponse<CourseSummaryResponse>> {
+        val courses = courseService.findCourses(status, OffsetLimit(offset, limit))
+        return ApiResponse.success(PageResponse(courses.content.map { CourseSummaryResponse.from(it) }, courses.hasNext))
     }
 
     @GetMapping("/api/v1/courses/{courseId}")

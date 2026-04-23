@@ -10,6 +10,8 @@ import io.github.naminhyeok.course.core.domain.course.CourseSeats
 import io.github.naminhyeok.course.core.domain.course.CourseService
 import io.github.naminhyeok.course.core.domain.enrollment.Enrollment
 import io.github.naminhyeok.course.core.domain.enrollment.EnrollmentService
+import io.github.naminhyeok.course.core.support.OffsetLimit
+import io.github.naminhyeok.course.core.support.Page
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
@@ -143,22 +145,46 @@ class CourseControllerTest(
 
     @Test
     fun `GET api v1 courses 는 status 필터를 서비스로 전달한다`() {
-        every { courseService.findCourses(CourseStatus.OPEN) } returns listOf(sampleCourse())
+        every { courseService.findCourses(CourseStatus.OPEN, OffsetLimit(0, 20)) } returns
+            Page(listOf(sampleCourse()), hasNext = true)
 
         mockMvc
-            .perform(get("/api/v1/courses").param("status", "OPEN"))
+            .perform(
+                get("/api/v1/courses")
+                    .param("status", "OPEN")
+                    .param("offset", "0")
+                    .param("limit", "20"),
+            )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.data[0].id").value(1))
+            .andExpect(jsonPath("$.data.content[0].id").value(1))
+            .andExpect(jsonPath("$.data.hasNext").value(true))
+
+        verify { courseService.findCourses(CourseStatus.OPEN, OffsetLimit(0, 20)) }
     }
 
     @Test
     fun `GET api v1 courses 는 status 파라미터 없이도 동작한다`() {
-        every { courseService.findCourses(null) } returns listOf(sampleCourse())
+        every { courseService.findCourses(null, OffsetLimit(20, 20)) } returns
+            Page(listOf(sampleCourse()), hasNext = false)
 
         mockMvc
-            .perform(get("/api/v1/courses"))
+            .perform(
+                get("/api/v1/courses")
+                    .param("offset", "20")
+                    .param("limit", "20"),
+            )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.data[0].id").value(1))
+            .andExpect(jsonPath("$.data.content[0].id").value(1))
+            .andExpect(jsonPath("$.data.hasNext").value(false))
+
+        verify { courseService.findCourses(null, OffsetLimit(20, 20)) }
+    }
+
+    @Test
+    fun `GET api v1 courses 는 offset 과 limit 가 없으면 400 을 반환한다`() {
+        mockMvc
+            .perform(get("/api/v1/courses"))
+            .andExpect(status().isBadRequest)
     }
 
     @Test
@@ -244,7 +270,12 @@ class CourseControllerTest(
     @Test
     fun `GET api v1 courses 에 잘못된 status 쿼리 파라미터가 오면 400 을 반환한다`() {
         mockMvc
-            .perform(get("/api/v1/courses").param("status", "BANANA"))
+            .perform(
+                get("/api/v1/courses")
+                    .param("status", "BANANA")
+                    .param("offset", "0")
+                    .param("limit", "20"),
+            )
             .andExpect(status().isBadRequest)
     }
 }

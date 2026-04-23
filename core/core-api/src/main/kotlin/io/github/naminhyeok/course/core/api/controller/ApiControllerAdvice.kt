@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.boot.logging.LogLevel
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
@@ -41,6 +42,12 @@ class ApiControllerAdvice {
     @ExceptionHandler(MethodArgumentTypeMismatchException::class)
     fun handleMethodArgumentTypeMismatch(e: MethodArgumentTypeMismatchException): ResponseEntity<ApiResponse<Any>> {
         log.info("MethodArgumentTypeMismatchException : {}", e.message)
+        return ResponseEntity(ApiResponse.error(ErrorType.INVALID_REQUEST), ErrorType.INVALID_REQUEST.status)
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException::class)
+    fun handleMissingServletRequestParameter(e: MissingServletRequestParameterException): ResponseEntity<ApiResponse<Any>> {
+        log.info("MissingServletRequestParameterException : {}", e.message)
         return ResponseEntity(ApiResponse.error(ErrorType.INVALID_REQUEST), ErrorType.INVALID_REQUEST.status)
     }
 

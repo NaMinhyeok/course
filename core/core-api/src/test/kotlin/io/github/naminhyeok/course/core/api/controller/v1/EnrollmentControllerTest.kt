@@ -7,6 +7,8 @@ import io.github.naminhyeok.course.core.domain.course.Course
 import io.github.naminhyeok.course.core.domain.course.CourseSeats
 import io.github.naminhyeok.course.core.domain.enrollment.Enrollment
 import io.github.naminhyeok.course.core.domain.enrollment.EnrollmentService
+import io.github.naminhyeok.course.core.support.OffsetLimit
+import io.github.naminhyeok.course.core.support.Page
 import io.github.naminhyeok.course.enums.CourseStatus
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.mockk.every
@@ -129,54 +131,75 @@ class EnrollmentControllerTest(
 
     @Test
     fun `GET api v1 enrollments 는 현재 사용자의 신청 목록을 반환한다`() {
-        every { enrollmentService.getEnrollments(any(), null) } returns
-            listOf(sampleEnrollment(id = 42L, courseId = 10L))
-
-        mockMvc
-            .perform(
-                get("/api/v1/enrollments")
-                    .header("X-User-Id", "200"),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.data[0].enrollmentId").value(42))
-            .andExpect(jsonPath("$.data[0].course.id").value(10))
-            .andExpect(jsonPath("$.data[0].course.title").value("강의"))
-            .andExpect(jsonPath("$.data[0].status").value("PENDING"))
-            .andExpect(jsonPath("$.data[0].appliedAt").exists())
-            .andExpect(jsonPath("$.data[0].course.price").value(10000))
-            .andExpect(jsonPath("$.data[0].course.capacity").value(10))
-            .andExpect(jsonPath("$.data[0].course.status").value("OPEN"))
-            .andExpect(jsonPath("$.data[0].course.startAt").exists())
-            .andExpect(jsonPath("$.data[0].course.endAt").exists())
-    }
-
-    @Test
-    fun `GET api v1 enrollments 는 status 필터를 서비스로 전달한다`() {
-        every { enrollmentService.getEnrollments(any(), EnrollmentStatus.CONFIRMED) } returns
-            listOf(sampleEnrollment(status = EnrollmentStatus.CONFIRMED))
+        every { enrollmentService.getEnrollments(any(), null, OffsetLimit(0, 20)) } returns
+            Page(listOf(sampleEnrollment(id = 42L, courseId = 10L)), hasNext = true)
 
         mockMvc
             .perform(
                 get("/api/v1/enrollments")
                     .header("X-User-Id", "200")
-                    .param("status", "CONFIRMED"),
+                    .param("offset", "0")
+                    .param("limit", "20"),
             ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.data[0].status").value("CONFIRMED"))
+            .andExpect(jsonPath("$.data.content[0].enrollmentId").value(42))
+            .andExpect(jsonPath("$.data.content[0].course.id").value(10))
+            .andExpect(jsonPath("$.data.content[0].course.title").value("강의"))
+            .andExpect(jsonPath("$.data.content[0].status").value("PENDING"))
+            .andExpect(jsonPath("$.data.content[0].appliedAt").exists())
+            .andExpect(jsonPath("$.data.content[0].course.price").value(10000))
+            .andExpect(jsonPath("$.data.content[0].course.capacity").value(10))
+            .andExpect(jsonPath("$.data.content[0].course.status").value("OPEN"))
+            .andExpect(jsonPath("$.data.content[0].course.startAt").exists())
+            .andExpect(jsonPath("$.data.content[0].course.endAt").exists())
+            .andExpect(jsonPath("$.data.hasNext").value(true))
 
-        verify { enrollmentService.getEnrollments(any(), EnrollmentStatus.CONFIRMED) }
+        verify { enrollmentService.getEnrollments(any(), null, OffsetLimit(0, 20)) }
     }
 
     @Test
-    fun `GET api v1 enrollments 는 status 파라미터 없이도 동작한다`() {
-        every { enrollmentService.getEnrollments(any(), null) } returns emptyList()
+    fun `GET api v1 enrollments 는 status 필터를 서비스로 전달한다`() {
+        every { enrollmentService.getEnrollments(any(), EnrollmentStatus.CONFIRMED, OffsetLimit(20, 20)) } returns
+            Page(listOf(sampleEnrollment(status = EnrollmentStatus.CONFIRMED)), hasNext = false)
 
         mockMvc
             .perform(
                 get("/api/v1/enrollments")
-                    .header("X-User-Id", "200"),
+                    .header("X-User-Id", "200")
+                    .param("status", "CONFIRMED")
+                    .param("offset", "20")
+                    .param("limit", "20"),
             ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.data").isArray)
+            .andExpect(jsonPath("$.data.content[0].status").value("CONFIRMED"))
+            .andExpect(jsonPath("$.data.hasNext").value(false))
 
-        verify { enrollmentService.getEnrollments(any(), null) }
+        verify { enrollmentService.getEnrollments(any(), EnrollmentStatus.CONFIRMED, OffsetLimit(20, 20)) }
+    }
+
+    @Test
+    fun `GET api v1 enrollments 는 status 파라미터 없이도 동작한다`() {
+        every { enrollmentService.getEnrollments(any(), null, OffsetLimit(0, 20)) } returns
+            Page(emptyList<Enrollment>(), hasNext = false)
+
+        mockMvc
+            .perform(
+                get("/api/v1/enrollments")
+                    .header("X-User-Id", "200")
+                    .param("offset", "0")
+                    .param("limit", "20"),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.content").isArray)
+            .andExpect(jsonPath("$.data.hasNext").value(false))
+
+        verify { enrollmentService.getEnrollments(any(), null, OffsetLimit(0, 20)) }
+    }
+
+    @Test
+    fun `GET api v1 enrollments 는 offset 과 limit 가 없으면 400 을 반환한다`() {
+        mockMvc
+            .perform(
+                get("/api/v1/enrollments")
+                    .header("X-User-Id", "200"),
+            ).andExpect(status().isBadRequest)
     }
 
     @Test
@@ -185,7 +208,9 @@ class EnrollmentControllerTest(
             .perform(
                 get("/api/v1/enrollments")
                     .header("X-User-Id", "200")
-                    .param("status", "BANANA"),
+                    .param("status", "BANANA")
+                    .param("offset", "0")
+                    .param("limit", "20"),
             ).andExpect(status().isBadRequest)
     }
 

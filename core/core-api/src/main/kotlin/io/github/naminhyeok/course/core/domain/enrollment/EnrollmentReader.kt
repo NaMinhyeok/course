@@ -3,6 +3,9 @@ package io.github.naminhyeok.course.core.domain.enrollment
 import io.github.naminhyeok.course.core.domain.course.Course
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
+import io.github.naminhyeok.course.core.support.OffsetLimit
+import io.github.naminhyeok.course.core.support.Page
+import io.github.naminhyeok.course.enums.EntityStatus
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
@@ -21,16 +24,27 @@ class EnrollmentReader(
     fun getEnrollments(
         userId: Long,
         status: EnrollmentStatus?,
-    ): List<Enrollment> {
+        offsetLimit: OffsetLimit,
+    ): Page<Enrollment> {
         val enrollments =
-            if (status == null) {
-                enrollmentRepository.findByUserIdOrderByIdDesc(userId)
-            } else {
-                enrollmentRepository.findByUserIdAndEnrollmentStatusOrderByIdDesc(userId, status)
+            when (status) {
+                null ->
+                    enrollmentRepository.findByUserIdAndStatusOrderByIdDesc(
+                        userId = userId,
+                        status = EntityStatus.ACTIVE,
+                        pageable = offsetLimit.toPageable(),
+                    )
+                else ->
+                    enrollmentRepository.findByUserIdAndStatusAndEnrollmentStatusOrderByIdDesc(
+                        userId = userId,
+                        status = EntityStatus.ACTIVE,
+                        enrollmentStatus = status,
+                        pageable = offsetLimit.toPageable(),
+                    )
             }
-        if (enrollments.isEmpty()) return emptyList()
+        if (enrollments.isEmpty) return Page(emptyList(), hasNext = false)
 
-        val courseIds = enrollments.map { it.courseId }.distinct()
+        val courseIds = enrollments.content.map { it.courseId }.distinct()
         val courses = courseRepository.findAllById(courseIds)
         val seatsByCourseId = courseSeatsRepository.findByCourseIdIn(courseIds).associateBy { it.courseId }
         val courseMap =
@@ -40,17 +54,21 @@ class EnrollmentReader(
                     course.id to Course.from(course, seatsByCourseId[course.id]!!)
                 }
 
-        return enrollments
-            .filter { courseMap.containsKey(it.courseId) }
-            .map { entity ->
-                Enrollment(
-                    id = entity.id,
-                    userId = entity.userId,
-                    course = courseMap[entity.courseId]!!,
-                    status = entity.enrollmentStatus,
-                    appliedAt = entity.createdAt,
-                )
-            }
+        return Page(
+            content =
+                enrollments.content
+                    .filter { courseMap.containsKey(it.courseId) }
+                    .map { entity ->
+                        Enrollment(
+                            id = entity.id,
+                            userId = entity.userId,
+                            course = courseMap[entity.courseId]!!,
+                            status = entity.enrollmentStatus,
+                            appliedAt = entity.createdAt,
+                        )
+                    },
+            hasNext = enrollments.hasNext(),
+        )
     }
 
     fun getConfirmedEnrollmentsByCourse(courseId: Long): List<Enrollment> {

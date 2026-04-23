@@ -2,6 +2,7 @@ package io.github.naminhyeok.course.core.domain.course
 
 import io.github.naminhyeok.course.ContextTest
 import io.github.naminhyeok.course.core.domain.User
+import io.github.naminhyeok.course.core.support.OffsetLimit
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
@@ -143,10 +144,11 @@ class CourseServiceTest(
         val open = saveCourseWithSeats(status = CourseStatus.OPEN)
         val closed = saveCourseWithSeats(status = CourseStatus.CLOSED)
 
-        val courses = courseService.findCourses(status = null)
+        val courses = courseService.findCourses(status = null, offsetLimit = OffsetLimit(0, 10))
 
-        assertThat(courses.map { it.id }).containsExactlyInAnyOrder(open.id, closed.id)
-        assertThat(courses.map { it.id }).doesNotContain(draft.id)
+        assertThat(courses.content.map { it.id }).containsExactly(closed.id, open.id)
+        assertThat(courses.content.map { it.id }).doesNotContain(draft.id)
+        assertThat(courses.hasNext).isFalse()
     }
 
     @Test
@@ -155,10 +157,27 @@ class CourseServiceTest(
         saveCourseWithSeats(status = CourseStatus.CLOSED)
         saveCourseWithSeats(status = CourseStatus.DRAFT)
 
-        val courses = courseService.findCourses(status = CourseStatus.OPEN)
+        val courses = courseService.findCourses(status = CourseStatus.OPEN, offsetLimit = OffsetLimit(0, 10))
 
-        assertThat(courses).hasSize(1)
-        assertThat(courses.first().id).isEqualTo(open.id)
+        assertThat(courses.content).hasSize(1)
+        assertThat(courses.content.first().id).isEqualTo(open.id)
+        assertThat(courses.hasNext).isFalse()
+    }
+
+    @Test
+    fun `findCourses 는 offset limit 기준으로 페이지를 반환하고 hasNext 를 계산한다`() {
+        val oldest = saveCourseWithSeats(status = CourseStatus.OPEN)
+        val middle = saveCourseWithSeats(status = CourseStatus.CLOSED)
+        val latest = saveCourseWithSeats(status = CourseStatus.OPEN)
+
+        val firstPage = courseService.findCourses(status = null, offsetLimit = OffsetLimit(0, 2))
+        val secondPage = courseService.findCourses(status = null, offsetLimit = OffsetLimit(1, 1))
+
+        assertThat(firstPage.content.map { it.id }).containsExactly(latest.id, middle.id)
+        assertThat(firstPage.hasNext).isTrue()
+        assertThat(secondPage.content.map { it.id }).containsExactly(middle.id)
+        assertThat(secondPage.hasNext).isTrue()
+        assertThat(secondPage.content.map { it.id }).doesNotContain(oldest.id)
     }
 
     @Test
