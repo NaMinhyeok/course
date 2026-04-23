@@ -18,3 +18,28 @@ CREATE TABLE course (
     INDEX idx_course_creator_id (creator_id),
     INDEX idx_course_course_status (course_status)
 );
+
+CREATE TABLE course_seats (
+    id              BIGINT        NOT NULL AUTO_INCREMENT,
+    course_id       BIGINT        NOT NULL,
+    capacity        INT           NOT NULL,
+    reserved_count  INT           NOT NULL,
+    version         BIGINT        NOT NULL,
+    status          VARCHAR(20)   NOT NULL DEFAULT 'ACTIVE',  -- BaseEntity: ACTIVE / DELETED
+    created_at      DATETIME(6)   NOT NULL,
+    updated_at      DATETIME(6)   NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE INDEX udx_course_seats_course_id (course_id)
+);
+
+CREATE TABLE enrollment (
+    id                 BIGINT        NOT NULL AUTO_INCREMENT,
+    course_id          BIGINT        NOT NULL,
+    user_id            BIGINT        NOT NULL,
+    enrollment_status  VARCHAR(20)   NOT NULL,                 -- PENDING / CONFIRMED / CANCELLED
+    status             VARCHAR(20)   NOT NULL DEFAULT 'ACTIVE',-- BaseEntity: ACTIVE / DELETED
+    created_at         DATETIME(6)   NOT NULL,
+    updated_at         DATETIME(6)   NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_enrollment_user_id (user_id)
+);
