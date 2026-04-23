@@ -9,6 +9,8 @@ import io.github.naminhyeok.course.core.domain.enrollment.Enrollment
 import io.github.naminhyeok.course.core.domain.enrollment.EnrollmentService
 import io.github.naminhyeok.course.core.support.OffsetLimit
 import io.github.naminhyeok.course.core.support.Page
+import io.github.naminhyeok.course.core.support.error.CoreException
+import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.mockk.every
@@ -101,6 +103,39 @@ class EnrollmentControllerTest(
             ).andExpect(status().isOk)
 
         verify { enrollmentService.cancel(any(), 7L) }
+    }
+
+    @Test
+    fun `PATCH api v1 enrollments id status CANCELLED 는 취소 가능 기간 초과면 400 과 에러 메시지를 반환한다`() {
+        every { enrollmentService.cancel(any(), 7L) } throws CoreException(ErrorType.ENROLLMENT_CANCEL_EXPIRED)
+
+        mockMvc
+            .perform(
+                patch("/api/v1/enrollments/7/status")
+                    .header("X-User-Id", "200")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"status":"CANCELLED"}"""),
+            ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.result").value("ERROR"))
+            .andExpect(jsonPath("$.error.code").value("E400"))
+            .andExpect(jsonPath("$.error.message").value("수강 취소 가능 기간이 지났습니다."))
+    }
+
+    @Test
+    fun `PATCH api v1 enrollments id status CANCELLED 는 확정 시간이 없으면 400 과 전용 에러 메시지를 반환한다`() {
+        every { enrollmentService.cancel(any(), 7L) } throws
+            CoreException(ErrorType.ENROLLMENT_CANCEL_UNAVAILABLE)
+
+        mockMvc
+            .perform(
+                patch("/api/v1/enrollments/7/status")
+                    .header("X-User-Id", "200")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"status":"CANCELLED"}"""),
+            ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.result").value("ERROR"))
+            .andExpect(jsonPath("$.error.code").value("E400"))
+            .andExpect(jsonPath("$.error.message").value("확정 시간이 없어 수강 취소 가능 기간을 확인할 수 없습니다."))
     }
 
     private fun sampleEnrollment(
