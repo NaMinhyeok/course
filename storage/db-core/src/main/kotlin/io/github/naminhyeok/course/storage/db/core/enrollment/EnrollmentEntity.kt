@@ -13,6 +13,7 @@ import jakarta.persistence.Table
     name = "enrollment",
     indexes = [
         Index(name = "idx_enrollment_user_id", columnList = "userId"),
+        Index(name = "idx_enrollment_course_id_enrollment_status", columnList = "courseId, enrollmentStatus"),
     ],
 )
 class EnrollmentEntity(

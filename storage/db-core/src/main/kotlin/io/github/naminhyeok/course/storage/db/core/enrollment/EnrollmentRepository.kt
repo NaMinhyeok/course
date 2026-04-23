@@ -10,4 +10,9 @@ interface EnrollmentRepository : JpaRepository<EnrollmentEntity, Long> {
         userId: Long,
         enrollmentStatus: EnrollmentStatus,
     ): List<EnrollmentEntity>
+
+    fun findByCourseIdAndEnrollmentStatusOrderByIdDesc(
+        courseId: Long,
+        enrollmentStatus: EnrollmentStatus,
+    ): List<EnrollmentEntity>
 }
