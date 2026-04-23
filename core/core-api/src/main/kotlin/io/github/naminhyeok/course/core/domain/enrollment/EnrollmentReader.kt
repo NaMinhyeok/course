@@ -5,6 +5,7 @@ import io.github.naminhyeok.course.core.support.OffsetLimit
 import io.github.naminhyeok.course.core.support.Page
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
+import io.github.naminhyeok.course.enums.EntityStatus
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsRepository
@@ -28,8 +29,19 @@ class EnrollmentReader(
         val pageable = offsetLimit.toPageable()
         val enrollments =
             when (status) {
-                null -> enrollmentRepository.findUserEnrollments(userId, pageable)
-                else -> enrollmentRepository.findUserEnrollmentsByStatus(userId, status, pageable)
+                null ->
+                    enrollmentRepository.findByUserIdAndStatusOrderByIdDesc(
+                        userId = userId,
+                        status = EntityStatus.ACTIVE,
+                        pageable = pageable,
+                    )
+                else ->
+                    enrollmentRepository.findByUserIdAndStatusAndEnrollmentStatusOrderByIdDesc(
+                        userId = userId,
+                        status = EntityStatus.ACTIVE,
+                        enrollmentStatus = status,
+                        pageable = pageable,
+                    )
             }
         if (enrollments.isEmpty) return Page(emptyList(), hasNext = false)
 
@@ -61,7 +73,12 @@ class EnrollmentReader(
     }
 
     fun getConfirmedEnrollmentsByCourse(courseId: Long): List<Enrollment> {
-        val enrollments = enrollmentRepository.findConfirmedEnrollmentsByCourse(courseId)
+        val enrollments =
+            enrollmentRepository.findByCourseIdAndStatusAndEnrollmentStatusOrderByIdDesc(
+                courseId = courseId,
+                status = EntityStatus.ACTIVE,
+                enrollmentStatus = EnrollmentStatus.CONFIRMED,
+            )
         if (enrollments.isEmpty()) return emptyList()
 
         val course =

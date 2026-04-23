@@ -7,23 +7,6 @@ import org.springframework.data.domain.Slice
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface CourseRepository : JpaRepository<CourseEntity, Long> {
-    fun findVisibleCourses(pageable: Pageable): Slice<CourseEntity> =
-        findByStatusAndCourseStatusNotOrderByIdDesc(
-            status = EntityStatus.ACTIVE,
-            excludedStatus = CourseStatus.DRAFT,
-            pageable = pageable,
-        )
-
-    fun findCoursesByStatus(
-        courseStatus: CourseStatus,
-        pageable: Pageable,
-    ): Slice<CourseEntity> =
-        findByStatusAndCourseStatusOrderByIdDesc(
-            status = EntityStatus.ACTIVE,
-            courseStatus = courseStatus,
-            pageable = pageable,
-        )
-
     fun findByStatusAndCourseStatusNotOrderByIdDesc(
         status: EntityStatus,
         excludedStatus: CourseStatus,

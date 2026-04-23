@@ -1,5 +1,6 @@
 package io.github.naminhyeok.course.storage.db.core.enrollment
 
+import io.github.naminhyeok.course.enums.EntityStatus
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.CoreDbContextTest
 import org.assertj.core.api.Assertions.assertThat
@@ -21,8 +22,9 @@ class EnrollmentRepositoryTest(
         val latest = enrollmentRepository.save(EnrollmentEntity(courseId = 5L, userId = 100L))
 
         val result =
-            enrollmentRepository.findUserEnrollments(
+            enrollmentRepository.findByUserIdAndStatusOrderByIdDesc(
                 userId = 100L,
+                status = EntityStatus.ACTIVE,
                 pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "id")),
             )
 
@@ -43,8 +45,9 @@ class EnrollmentRepositoryTest(
         enrollmentRepository.save(EnrollmentEntity(courseId = 4L, userId = 999L)).also { it.confirm() }
 
         val result =
-            enrollmentRepository.findUserEnrollmentsByStatus(
+            enrollmentRepository.findByUserIdAndStatusAndEnrollmentStatusOrderByIdDesc(
                 userId = 100L,
+                status = EntityStatus.ACTIVE,
                 enrollmentStatus = EnrollmentStatus.CONFIRMED,
                 pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id")),
             )
@@ -66,8 +69,10 @@ class EnrollmentRepositoryTest(
         enrollmentRepository.save(EnrollmentEntity(courseId = 2L, userId = 103L)).also { it.confirm() }
 
         val result =
-            enrollmentRepository.findConfirmedEnrollmentsByCourse(
-                1L,
+            enrollmentRepository.findByCourseIdAndStatusAndEnrollmentStatusOrderByIdDesc(
+                courseId = 1L,
+                status = EntityStatus.ACTIVE,
+                enrollmentStatus = EnrollmentStatus.CONFIRMED,
             )
 
         assertThat(result).extracting("id").containsExactly(secondConfirmed.id, firstConfirmed.id)

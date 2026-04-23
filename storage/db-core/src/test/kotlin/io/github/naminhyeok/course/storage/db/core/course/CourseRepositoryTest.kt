@@ -1,6 +1,7 @@
 package io.github.naminhyeok.course.storage.db.core.course
 
 import io.github.naminhyeok.course.enums.CourseStatus
+import io.github.naminhyeok.course.enums.EntityStatus
 import io.github.naminhyeok.course.storage.db.CoreDbContextTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -40,7 +41,9 @@ class CourseRepositoryTest(
         val latest = courseRepository.save(courseOf(status = CourseStatus.OPEN))
 
         val result =
-            courseRepository.findVisibleCourses(
+            courseRepository.findByStatusAndCourseStatusNotOrderByIdDesc(
+                status = EntityStatus.ACTIVE,
+                excludedStatus = CourseStatus.DRAFT,
                 pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "id")),
             )
 
@@ -58,7 +61,8 @@ class CourseRepositoryTest(
         courseRepository.save(courseOf(status = CourseStatus.DRAFT))
 
         val result =
-            courseRepository.findCoursesByStatus(
+            courseRepository.findByStatusAndCourseStatusOrderByIdDesc(
+                status = EntityStatus.ACTIVE,
                 courseStatus = CourseStatus.OPEN,
                 pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id")),
             )

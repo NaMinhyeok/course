@@ -6,6 +6,7 @@ import io.github.naminhyeok.course.core.support.Page
 import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.CourseStatus
+import io.github.naminhyeok.course.enums.EntityStatus
 import io.github.naminhyeok.course.storage.db.core.course.CourseEntity
 import io.github.naminhyeok.course.storage.db.core.course.CourseRepository
 import io.github.naminhyeok.course.storage.db.core.course.CourseSeatsEntity
@@ -67,9 +68,19 @@ class CourseService(
     ): Page<Course> {
         val visibleCourses =
             when (status) {
-                null -> courseRepository.findVisibleCourses(offsetLimit.toPageable())
+                null ->
+                    courseRepository.findByStatusAndCourseStatusNotOrderByIdDesc(
+                        status = EntityStatus.ACTIVE,
+                        excludedStatus = CourseStatus.DRAFT,
+                        pageable = offsetLimit.toPageable(),
+                    )
                 CourseStatus.DRAFT -> return Page(emptyList(), hasNext = false)
-                else -> courseRepository.findCoursesByStatus(status, offsetLimit.toPageable())
+                else ->
+                    courseRepository.findByStatusAndCourseStatusOrderByIdDesc(
+                        status = EntityStatus.ACTIVE,
+                        courseStatus = status,
+                        pageable = offsetLimit.toPageable(),
+                    )
             }
         if (visibleCourses.isEmpty) return Page(emptyList(), hasNext = false)
         val seatsByCourseId =
