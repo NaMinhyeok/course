@@ -5,8 +5,10 @@ import io.github.naminhyeok.course.core.support.error.CoreException
 import io.github.naminhyeok.course.core.support.error.ErrorType
 import io.github.naminhyeok.course.enums.EnrollmentStatus
 import io.github.naminhyeok.course.storage.db.core.enrollment.EnrollmentEntity
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.LocalDateTime
@@ -37,17 +39,17 @@ class EnrollmentCancelPolicyValidatorTest {
     }
 
     @Test
-    fun `confirmedAt 이 없으면 INVALID_REQUEST 예외를 던진다`() {
+    fun `confirmedAt 이 없으면 전용 취소 불가 예외를 던진다`() {
         val enrollment = confirmedEnrollment(confirmedAt = now.minusDays(1))
         EnrollmentEntity::class.java.getDeclaredField("confirmedAt").apply {
             isAccessible = true
             set(enrollment, null)
         }
 
-        assertThatThrownBy { validator.validate(user, enrollment) }
-            .isInstanceOf(CoreException::class.java)
-            .extracting("errorType")
-            .isEqualTo(ErrorType.INVALID_REQUEST)
+        val thrown = catchThrowable { validator.validate(user, enrollment) }
+
+        assertThat(thrown).isInstanceOf(CoreException::class.java)
+        assertThat((thrown as CoreException).errorType).isEqualTo(ErrorType.ENROLLMENT_CANCEL_UNAVAILABLE)
     }
 
     private fun confirmedEnrollment(confirmedAt: LocalDateTime): EnrollmentEntity =

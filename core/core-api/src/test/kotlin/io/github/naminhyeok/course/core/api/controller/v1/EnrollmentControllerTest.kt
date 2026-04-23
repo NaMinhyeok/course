@@ -121,6 +121,23 @@ class EnrollmentControllerTest(
             .andExpect(jsonPath("$.error.message").value("수강 취소 가능 기간이 지났습니다."))
     }
 
+    @Test
+    fun `PATCH api v1 enrollments id status CANCELLED 는 확정 시간이 없으면 400 과 전용 에러 메시지를 반환한다`() {
+        every { enrollmentService.cancel(any(), 7L) } throws
+            CoreException(ErrorType.ENROLLMENT_CANCEL_UNAVAILABLE)
+
+        mockMvc
+            .perform(
+                patch("/api/v1/enrollments/7/status")
+                    .header("X-User-Id", "200")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"status":"CANCELLED"}"""),
+            ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.result").value("ERROR"))
+            .andExpect(jsonPath("$.error.code").value("E400"))
+            .andExpect(jsonPath("$.error.message").value("확정 시간이 없어 수강 취소 가능 기간을 확인할 수 없습니다."))
+    }
+
     private fun sampleEnrollment(
         id: Long = 1L,
         courseId: Long = 10L,

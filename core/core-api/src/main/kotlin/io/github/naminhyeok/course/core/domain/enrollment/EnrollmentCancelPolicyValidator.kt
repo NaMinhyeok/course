@@ -25,7 +25,7 @@ class EnrollmentCancelPolicyValidator(
         check(enrollment.enrollmentStatus == EnrollmentStatus.CONFIRMED) {
             "CONFIRMED 상태에서만 취소할 수 있습니다: ${enrollment.enrollmentStatus}"
         }
-        val confirmedAt = enrollment.confirmedAt ?: throw CoreException(ErrorType.INVALID_REQUEST)
+        val confirmedAt = enrollment.confirmedAt ?: throw CoreException(ErrorType.ENROLLMENT_CANCEL_UNAVAILABLE)
         if (confirmedAt.plusDays(CANCEL_AVAILABLE_DAYS).isBefore(LocalDateTime.now(clock))) {
             throw CoreException(ErrorType.ENROLLMENT_CANCEL_EXPIRED)
         }
