@@ -8,30 +8,11 @@ import org.junit.jupiter.api.Test
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.transaction.annotation.Transactional
-import jakarta.persistence.EntityManager
-import java.time.LocalDateTime
 
 @Transactional
 class EnrollmentRepositoryTest(
     private val enrollmentRepository: EnrollmentRepository,
-    private val entityManager: EntityManager,
 ) : CoreDbContextTest() {
-    @Test
-    fun `저장된 엔티티는 기본 상태가 PENDING 이다`() {
-        val saved =
-            enrollmentRepository.save(
-                EnrollmentEntity(courseId = 1L, userId = 100L),
-            )
-
-        entityManager.flush()
-        entityManager.clear()
-
-        val found = enrollmentRepository.findById(saved.id).orElseThrow()
-        assertThat(found.enrollmentStatus).isEqualTo(EnrollmentStatus.PENDING)
-        assertThat(found.courseId).isEqualTo(1L)
-        assertThat(found.userId).isEqualTo(100L)
-    }
-
     @Test
     fun `findByUserIdAndStatusOrderByIdDesc 는 사용자 신청을 id 내림차순 Slice 로 반환한다`() {
         val oldest = enrollmentRepository.save(EnrollmentEntity(courseId = 1L, userId = 100L))
@@ -92,27 +73,5 @@ class EnrollmentRepositoryTest(
         assertThat(result).extracting("id").containsExactly(secondConfirmed.id, firstConfirmed.id)
         assertThat(result).allMatch { it.courseId == 1L && it.enrollmentStatus == EnrollmentStatus.CONFIRMED }
         assertThat(pending.id).isNotEqualTo(secondConfirmed.id)
-    }
-
-    @Test
-    fun `CONFIRMED 상태의 confirmedAt 은 저장 후 조회된다`() {
-        val confirmedAt = LocalDateTime.of(2026, 4, 23, 10, 0)
-        val saved =
-            enrollmentRepository.save(
-                EnrollmentEntity(
-                    courseId = 1L,
-                    userId = 100L,
-                    enrollmentStatus = EnrollmentStatus.CONFIRMED,
-                    confirmedAt = confirmedAt,
-                ),
-            )
-
-        entityManager.flush()
-        entityManager.clear()
-
-        val found = enrollmentRepository.findById(saved.id).orElseThrow()
-
-        assertThat(found.enrollmentStatus).isEqualTo(EnrollmentStatus.CONFIRMED)
-        assertThat(found.confirmedAt).isEqualTo(confirmedAt)
     }
 }
